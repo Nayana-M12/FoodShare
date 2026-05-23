@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-leaf"></i>
+                <span>FoodShare</span>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="top-bar-content">
+                    <h1>Donor Dashboard</h1>
+                    <p>Manage your food donations</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div class="content-wrapper">
+                <!-- Welcome Card -->
+                <div class="welcome-card">
+                    <h2>Welcome, Food Donor! 👋</h2>
+                    <p>Thank you for contributing to reduce food waste and feed those in need. Your donations make a real difference.</p>
+                    <div class="welcome-stats">
+                        <div class="welcome-stat">
+                            <p>Total Donations</p>
+                            <span>24</span>
+                        </div>
+                        <div class="welcome-stat">
+                            <p>Meals Shared</p>
+                            <span>580+</span>
+                        </div>
+                        <div class="welcome-stat">
+                            <p>Lives Helped</p>
+                            <span>145+</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Donation Form -->
+                <div id="newDonationForm" style="display: none;" class="card">
+                    <div class="card-header">
+                        <h3>Add New Food Donation</h3>
+                        <button class="close-btn" onclick="closeDonationForm()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="donationForm" class="form-grid">
+                        <div class="form-group">
+                            <label>Food Name *</label>
+                            <input type="text" name="foodName" placeholder="e.g., Biryani & Rice" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Quantity *</label>
+                            <input type="text" name="quantity" placeholder="e.g., 20 portions" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Food Type *</label>
+                            <select name="foodType" required>
+                                <option value="">Select food type</option>
+                                <option value="Cooked Food">Cooked Food</option>
+                                <option value="Fresh Produce">Fresh Produce</option>
+                                <option value="Bakery Items">Bakery Items</option>
+                                <option value="Packaged Food">Packaged Food</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Expiry Time *</label>
+                            <input type="text" name="expiryTime" placeholder="e.g., 2 hours" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Pickup Address *</label>
+                            <textarea name="pickupAddress" placeholder="Full address with landmark" required></textarea>
+                        </div>
+
+                        <div class="form-actions full-width">
+                            <button type="submit" class="btn btn-primary">Submit Donation</button>
+                            <button type="button" class="btn btn-outline" onclick="closeDonationForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Donation History -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Donation History</h3>
+                        <button class="btn btn-primary" onclick="openDonationForm()">
+                            <i class="fas fa-plus"></i> Add New Donation
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Food Name</th>
+                                    <th>Quantity</th>
+                                    <th>Type</th>
+                                    <th>Expiry</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="donationTable">
+                                <tr>
+                                    <td>Biryani & Rice</td>
+                                    <td>20 portions</td>
+                                    <td>Cooked Food</td>
+                                    <td>2 hours</td>
+                                    <td><span class="badge badge-approved">Approved</span></td>
+                                    <td>2024-05-20</td>
+                                </tr>
+                                <tr>
+                                    <td>Fresh Fruits</td>
+                                    <td>50 kg</td>
+                                    <td>Fresh Produce</td>
+                                    <td>5 days</td>
+                                    <td><span class="badge badge-picked">Picked Up</span></td>
+                                    <td>2024-05-19</td>
+                                </tr>
+                                <tr>
+                                    <td>Bread & Bakery</td>
+                                    <td>100 pieces</td>
+                                    <td>Bakery Items</td>
+                                    <td>1 day</td>
+                                    <td><span class="badge badge-delivered">Delivered</span></td>
+                                    <td>2024-05-18</td>
+                                </tr>
+                                <tr>
+                                    <td>Prepared Meals</td>
+                                    <td>30 servings</td>
+                                    <td>Cooked Food</td>
+                                    <td>4 hours</td>
+                                    <td><span class="badge badge-pending">Pending</span></td>
+                                    <td>2024-05-21</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        function openDonationForm() {
+            document.getElementById('newDonationForm').style.display = 'block';
+            document.querySelector('.data-table').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeDonationForm() {
+            document.getElementById('newDonationForm').style.display = 'none';
+        }
+
+        document.getElementById('donationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${formData.get('foodName')}</td>
+                <td>${formData.get('quantity')}</td>
+                <td>${formData.get('foodType')}</td>
+                <td>${formData.get('expiryTime')}</td>
+                <td><span class="badge badge-pending">Pending</span></td>
+                <td>${new Date().toISOString().split('T')[0]}</td>
+            `;
+            
+            document.getElementById('donationTable').insertBefore(newRow, document.getElementById('donationTable').firstChild);
+            closeDonationForm();
+            this.reset();
+        });
+
+        function logout() {
+            appConfirm({
+                title: 'Logout',
+                message: 'Are you sure you want to logout?',
+                confirmText: 'Logout',
+                onConfirm: function() {
+                    window.location.href = 'index.html';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

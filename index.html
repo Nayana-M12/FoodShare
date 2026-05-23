@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodShare - Food Donation Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-leaf"></i>
+                <span>FoodShare</span>
+            </div>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#stats" class="nav-link">Impact</a>
+                <a href="#about" class="nav-link">About</a>
+                <a href="login.html" class="nav-link">Login</a>
+                <a href="register.html" class="nav-btn">Register</a>
+            </div>
+
+            <button class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Reduce Food Waste, <span class="highlight">Feed More Lives</span></h1>
+                <p class="hero-subtitle">Connect food donors with NGOs and volunteers to eliminate food waste and support those in need. Join our community today.</p>
+                <div class="hero-buttons">
+                    <a href="register.html" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Donate Food
+                    </a>
+                    <a href="register.html" class="btn btn-outline">Request Food</a>
+                </div>
+            </div>
+            
+            <div class="hero-cards">
+                <div class="hero-card">
+                    <div class="card-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <h3>Easy Donation</h3>
+                    <p>List food in minutes</p>
+                </div>
+                <div class="hero-card">
+                    <div class="card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Community</h3>
+                    <p>Connect with NGOs</p>
+                </div>
+                <div class="hero-card">
+                    <div class="card-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h3>Volunteers</h3>
+                    <p>Fast delivery service</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="stats" id="stats">
+        <div class="container">
+            <h2 class="section-title">Our Impact</h2>
+            <p class="section-subtitle">Making a real difference in communities worldwide</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 class="stat-number">50K+</h3>
+                    <p class="stat-label">Total Meals Donated</p>
+                    <p class="stat-desc">Nutritious meals distributed to those in need</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-number">250+</h3>
+                    <p class="stat-label">NGOs Connected</p>
+                    <p class="stat-desc">Partner organizations making a real impact</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="stat-number">1.2K+</h3>
+                    <p class="stat-label">Active Volunteers</p>
+                    <p class="stat-desc">Community members volunteering their time</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Simple steps to make a difference</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-number">1</div>
+                    <h3>Register as Donor/NGO/Volunteer</h3>
+                    <p>Create an account and choose your role. It takes just a few minutes to get started.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-number">2</div>
+                    <h3>Connect & Collaborate</h3>
+                    <p>Donors list food items, NGOs request pickups, and volunteers deliver goods.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-number">3</div>
+                    <h3>Make an Impact</h3>
+                    <p>Track your contributions and see how you're making a difference every day.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-content">
+                    <h2 class="section-title">About FoodShare</h2>
+                    <p>
+                        FoodShare is an innovative platform dedicated to reducing food waste while supporting communities in need. We believe that no food should go to waste when there are people who need it.
+                    </p>
+                    <p>
+                        Our mission is to create a sustainable ecosystem where donors, NGOs, and volunteers work together to ensure that surplus food reaches those who need it most, quickly and efficiently.
+                    </p>
+                    <p>
+                        Since our launch, we've facilitated the donation of thousands of meals, connected hundreds of organizations, and empowered thousands of volunteers to make a real difference in their communities.
+                    </p>
+                    <a href="register.html" class="btn btn-primary">Join Our Community Today</a>
+                </div>
+                
+                <div class="about-cards">
+                    <div class="about-card">
+                        <h4>Environmental Impact</h4>
+                        <p>Reducing food waste helps combat climate change and preserves natural resources.</p>
+                    </div>
+                    <div class="about-card">
+                        <h4>Social Impact</h4>
+                        <p>We provide nutritious meals to those in food-insecure situations in our communities.</p>
+                    </div>
+                    <div class="about-card">
+                        <h4>Community Engagement</h4>
+                        <p>We foster a sense of community and shared responsibility among our members.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <i class="fas fa-leaf"></i>
+                        <span>FoodShare</span>
+                    </div>
+                    <p>Connecting food donors with those in need. Together, we reduce waste and feed more lives.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#">Home</a></li>
+                        <li><a href="register.html">Register</a></li>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms & Conditions</a></li>
+                        <li><a href="#">Blog</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Contact Us</h4>
+                    <p><i class="fas fa-envelope"></i> info@foodshare.com</p>
+                    <p><i class="fas fa-phone"></i> +1 (555) 123-4567</p>
+                    <p><i class="fas fa-map-marker-alt"></i> 123 Green Street, Tech City, TC 12345</p>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                </div>
+                <p>&copy; 2024 FoodShare. All rights reserved. | Built with <span style="color: #f97316;">❤️</span> for a better world.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

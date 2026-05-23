@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-leaf"></i>
+                <span>FoodShare</span>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="admin-dashboard.html" class="menu-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="admin-dashboard.html#usersSection" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </a>
+                <a href="admin-dashboard.html#donationsSection" class="menu-item">
+                    <i class="fas fa-utensils"></i>
+                    <span>Donations</span>
+                </a>
+                <!-- Analytics removed -->
+            </nav>
+
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar" id="top">
+                <div class="top-bar-content">
+                    <h1>Admin Dashboard</h1>
+                    <p>Manage the platform, users, and donations</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div class="content-wrapper">
+                <!-- Statistics Grid -->
+                <div class="stats-grid admin-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p>Total Users</p>
+                            <h3>1,245</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon secondary">
+                            <i class="fas fa-trending-up"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p>Total Donations</p>
+                            <h3>3,852</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p>Active Deliveries</p>
+                            <h3>48</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon secondary">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p>Approval Rate</p>
+                            <h3>94.2%</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manage Donations -->
+                <div class="card" id="donationsSection">
+                    <h3>Manage Donations</h3>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Donor</th>
+                                    <th>Food Item</th>
+                                    <th>Quantity</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="donationsTable">
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <p class="font-medium">Taj Restaurant</p>
+                                            <p class="text-small">+1 (555) 123-4567</p>
+                                        </div>
+                                    </td>
+                                    <td>Biryani & Rice</td>
+                                    <td>20 portions</td>
+                                    <td><span class="badge badge-pending">Pending</span></td>
+                                    <td>2024-05-21</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="action-btn approve" onclick="approveDonation(this)" title="Approve">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="action-btn reject" onclick="rejectDonation(this)" title="Reject">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <p class="font-medium">Green Market</p>
+                                            <p class="text-small">+1 (555) 234-5678</p>
+                                        </div>
+                                    </td>
+                                    <td>Fresh Vegetables</td>
+                                    <td>50 kg</td>
+                                    <td><span class="badge badge-approved">Approved</span></td>
+                                    <td>2024-05-20</td>
+                                    <td>
+                                        <span class="text-muted">—</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <p class="font-medium">Sweet Bakery</p>
+                                            <p class="text-small">+1 (555) 345-6789</p>
+                                        </div>
+                                    </td>
+                                    <td>Bread & Bakery</td>
+                                    <td>100 pieces</td>
+                                    <td><span class="badge" style="background: #fee2e2; color: #991b1b;">Rejected</span></td>
+                                    <td>2024-05-19</td>
+                                    <td>
+                                        <span class="text-muted">—</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <p class="font-medium">Metro Supermarket</p>
+                                            <p class="text-small">+1 (555) 456-7890</p>
+                                        </div>
+                                    </td>
+                                    <td>Canned Goods</td>
+                                    <td>200 items</td>
+                                    <td><span class="badge badge-pending">Pending</span></td>
+                                    <td>2024-05-21</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="action-btn approve" onclick="approveDonation(this)" title="Approve">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="action-btn reject" onclick="rejectDonation(this)" title="Reject">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Manage Users -->
+                <div class="card" id="usersSection">
+                    <h3>Manage Users</h3>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Join Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTable">
+                                <tr>
+                                    <td>John Doe</td>
+                                    <td>john@restaurant.com</td>
+                                    <td><span class="badge" style="background: #dbeafe; color: #1e40af;">Donor</span></td>
+                                    <td><span class="badge badge-delivered">Active</span></td>
+                                    <td>2024-01-15</td>
+                                    <td>
+                                        <button class="action-link" onclick="deactivateUser(this)">Deactivate</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Sarah NGO</td>
+                                    <td>sarah@ngo.com</td>
+                                    <td><span class="badge" style="background: #dbeafe; color: #1e40af;">NGO</span></td>
+                                    <td><span class="badge badge-delivered">Active</span></td>
+                                    <td>2024-02-20</td>
+                                    <td>
+                                        <button class="action-link" onclick="deactivateUser(this)">Deactivate</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Mike Volunteer</td>
+                                    <td>mike@volunteer.com</td>
+                                    <td><span class="badge" style="background: #dbeafe; color: #1e40af;">Volunteer</span></td>
+                                    <td><span class="badge badge-delivered">Active</span></td>
+                                    <td>2024-03-10</td>
+                                    <td>
+                                        <button class="action-link" onclick="deactivateUser(this)">Deactivate</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Admin User</td>
+                                    <td>admin@foodshare.com</td>
+                                    <td><span class="badge" style="background: #dbeafe; color: #1e40af;">Admin</span></td>
+                                    <td><span class="badge badge-delivered">Active</span></td>
+                                    <td>2024-01-01</td>
+                                    <td>
+                                        <span class="text-muted">—</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- Analytics section removed -->
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        function approveDonation(btn) {
+            const row = btn.closest('tr');
+            const statusCell = row.querySelector('td:nth-child(4)');
+            statusCell.innerHTML = '<span class="badge badge-approved">Approved</span>';
+            
+            const actionsCell = row.querySelector('td:last-child');
+            actionsCell.innerHTML = '<span class="text-muted">—</span>';
+            
+            appToast('Donation approved successfully.', 'success');
+        }
+
+        function rejectDonation(btn) {
+            const row = btn.closest('tr');
+            const statusCell = row.querySelector('td:nth-child(4)');
+            statusCell.innerHTML = '<span class="badge" style="background: #fee2e2; color: #991b1b;">Rejected</span>';
+            
+            const actionsCell = row.querySelector('td:last-child');
+            actionsCell.innerHTML = '<span class="text-muted">—</span>';
+            
+            appToast('Donation rejected.', 'warning');
+        }
+
+        function deactivateUser(btn) {
+            const row = btn.closest('tr');
+            const statusCell = row.querySelector('td:nth-child(4)');
+            statusCell.innerHTML = '<span class="badge" style="background: #f3f4f6; color: #374151;">Inactive</span>';
+            
+            const actionsCell = row.querySelector('td:last-child');
+            actionsCell.innerHTML = '<span class="text-muted">—</span>';
+            
+            appToast('User deactivated.', 'warning');
+        }
+
+        function logout() {
+            appConfirm({
+                title: 'Logout',
+                message: 'Are you sure you want to logout?',
+                confirmText: 'Logout',
+                onConfirm: function() {
+                    window.location.href = 'index.html';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
