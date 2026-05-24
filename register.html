@@ -176,6 +176,7 @@
         <p>&copy; 2024 FoodShare. All rights reserved.</p>
     </footer>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
         let selectedUserType = null;
@@ -212,7 +213,7 @@
         }
 
         // Form submission
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             if (!selectedUserType) {
@@ -298,37 +299,38 @@
                 }
             }
             
-            // Store user data in localStorage (for demo purposes)
-            const userData = {
-                userType: selectedUserType,
+            const payload = {
+                role: selectedUserType,
                 fullName: fullName,
                 email: email,
                 phone: phone,
                 address: address,
                 city: city,
                 password: password,
-                registeredAt: new Date().toLocaleString()
+                confirmPassword: confirmPassword,
             };
-            
-            // Save to localStorage
-            let users = JSON.parse(localStorage.getItem('foodShareUsers') || '[]');
-            
-            // Check if email already exists
-            if (users.some(u => u.email === email)) {
-                appToast('This email is already registered. Please login or use another email.', 'warning', 3200);
-                return;
+
+            if (selectedUserType === 'donor') {
+                payload.restaurantName = document.querySelector('input[name="restaurantName"]').value.trim();
+            } else if (selectedUserType === 'ngo') {
+                payload.organizationName = document.querySelector('input[name="organizationName"]').value.trim();
+                payload.registrationNumber = document.querySelector('input[name="registrationNumber"]').value.trim();
+            } else if (selectedUserType === 'volunteer') {
+                payload.experience = document.querySelector('select[name="experience"]').value;
             }
-            
-            users.push(userData);
-            localStorage.setItem('foodShareUsers', JSON.stringify(users));
-            
-            // Success message
-            appToast('Account created successfully. Redirecting to login page.', 'success', 1800);
-            
-            // Redirect to login
-            setTimeout(function() {
-                window.location.href = 'login.html';
-            }, 1000);
+
+            try {
+                const result = await apiRequest('register.php', {
+                    data: payload,
+                });
+
+                appToast(result.message || 'Account created successfully.', 'success');
+                setTimeout(function() {
+                    window.location.href = normalizeFrontendPath(result.data?.redirect || 'login.html');
+                }, 900);
+            } catch (error) {
+                appToast(error.message || 'Registration failed.', 'error');
+            }
         });
     </script>
 </body>

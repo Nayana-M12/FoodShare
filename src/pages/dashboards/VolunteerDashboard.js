@@ -148,7 +148,7 @@ const VolunteerDashboard = ({ onLogout }) => {
           </div>
 
           {/* Active Deliveries */}
-          <div className="mb-8">
+          <div id="deliveries" className="mb-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Active Deliveries</h3>
             <div className="space-y-6">
               {deliveries.map((delivery) => (
@@ -245,7 +245,7 @@ const VolunteerDashboard = ({ onLogout }) => {
           </div>
 
           {/* Completed Deliveries */}
-          <div className="card">
+          <div id="completedDeliveries" className="card">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Completed Deliveries</h3>
 
             {/* Desktop Table */}

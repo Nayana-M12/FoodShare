@@ -171,7 +171,7 @@
                                     <th>Date</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="requestedDonationsTable">
                                 <tr>
                                     <td>Biryani & Rice</td>
                                     <td>20 portions</td>
@@ -204,12 +204,102 @@
         </main>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
-        function requestPickup(btn) {
-            appToast('Pickup requested. Our team will contact you soon.', 'success');
-            btn.disabled = true;
-            btn.textContent = 'Request Sent';
+        let availableFoods = [];
+        let requestHistory = [];
+
+        function renderAvailableFoods() {
+            const searchTerm = document.getElementById('searchFood').value.toLowerCase();
+            const filterType = document.getElementById('filterType').value;
+            const foodGrid = document.getElementById('foodGrid');
+
+            const filteredFoods = availableFoods.filter(food => {
+                const foodName = String(food.food_name || '').toLowerCase();
+                const donorName = String(food.donor_name || '').toLowerCase();
+                const foodType = String(food.food_type || '');
+                const matchesSearch = foodName.includes(searchTerm) || donorName.includes(searchTerm);
+                const matchesFilter = filterType === 'all' || foodType === filterType;
+                return matchesSearch && matchesFilter;
+            });
+
+            if (filteredFoods.length === 0) {
+                foodGrid.innerHTML = '<div class="food-card"><p style="color:#6b7280;">No food donations matching your search.</p></div>';
+                return;
+            }
+
+            foodGrid.innerHTML = filteredFoods.map(food => `
+                <div class="food-card">
+                    <div class="food-header">
+                        <div>
+                            <h4>${escapeHtml(food.food_name)}</h4>
+                            <p>${escapeHtml(food.donor_name)}</p>
+                        </div>
+                        <span class="food-type">${escapeHtml(food.food_type)}</span>
+                    </div>
+                    <div class="food-details">
+                        <p><i class="fas fa-box"></i> ${escapeHtml(food.quantity)}</p>
+                        <p><i class="fas fa-clock"></i> Expires in ${escapeHtml(food.expiry_time)}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(food.pickup_address || 'Pickup location available')}</p>
+                    </div>
+                    <p class="food-posted">Posted ${formatDate(food.created_at)}</p>
+                    <button class="btn btn-secondary" onclick="requestPickup(${food.id})">Request Pickup</button>
+                </div>
+            `).join('');
+        }
+
+        function renderRequestHistory() {
+            const table = document.getElementById('requestedDonationsTable');
+
+            if (!requestHistory.length) {
+                table.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: #6b7280;">No pickup requests yet.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = requestHistory.map(request => `
+                <tr>
+                    <td>${escapeHtml(request.food_name)}</td>
+                    <td>${escapeHtml(request.quantity)}</td>
+                    <td>${escapeHtml(request.donor_name || '—')}</td>
+                    <td><span class="${badgeClassForDonationStatus(request.status)}">${escapeHtml(request.status)}</span></td>
+                    <td>${escapeHtml(request.pickup_date || 'Pending')}</td>
+                    <td>${formatDate(request.requested_at)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadAvailableFoods() {
+            try {
+                const result = await apiRequest('view_available_food.php', { method: 'GET' });
+                availableFoods = result.data?.food || [];
+                renderAvailableFoods();
+            } catch (error) {
+                appToast(error.message || 'Unable to load available food.', 'error');
+            }
+        }
+
+        async function loadRequestHistory() {
+            try {
+                const result = await apiRequest('ngo_requests.php', { method: 'GET' });
+                requestHistory = result.data?.requests || [];
+                renderRequestHistory();
+            } catch (error) {
+                appToast(error.message || 'Unable to load request history.', 'error');
+            }
+        }
+
+        async function requestPickup(donationId) {
+            try {
+                await apiRequest('request_pickup.php', {
+                    data: { donation_id: donationId },
+                });
+                appToast('Pickup requested successfully.', 'success');
+                await loadAvailableFoods();
+                await loadRequestHistory();
+            } catch (error) {
+                appToast(error.message || 'Unable to request pickup.', 'error');
+            }
         }
 
         function logout() {
@@ -217,32 +307,22 @@
                 title: 'Logout',
                 message: 'Are you sure you want to logout?',
                 confirmText: 'Logout',
-                onConfirm: function() {
-                    window.location.href = 'index.html';
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors.
+                    }
+                    window.location.href = 'login.html';
                 }
             });
         }
 
-        // Search and filter functionality
-        document.getElementById('searchFood').addEventListener('keyup', filterFoods);
-        document.getElementById('filterType').addEventListener('change', filterFoods);
+        document.getElementById('searchFood').addEventListener('keyup', renderAvailableFoods);
+        document.getElementById('filterType').addEventListener('change', renderAvailableFoods);
 
-        function filterFoods() {
-            const searchTerm = document.getElementById('searchFood').value.toLowerCase();
-            const filterType = document.getElementById('filterType').value;
-            const cards = document.querySelectorAll('.food-card');
-
-            cards.forEach(card => {
-                const title = card.querySelector('h4').textContent.toLowerCase();
-                const donor = card.querySelector('p').textContent.toLowerCase();
-                const type = card.querySelector('.food-type').textContent;
-
-                const matchesSearch = title.includes(searchTerm) || donor.includes(searchTerm);
-                const matchesFilter = filterType === 'all' || type === filterType;
-
-                card.style.display = (matchesSearch && matchesFilter) ? 'block' : 'none';
-            });
-        }
+        loadAvailableFoods();
+        loadRequestHistory();
     </script>
 </body>
 </html>

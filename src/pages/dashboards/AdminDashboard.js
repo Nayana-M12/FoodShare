@@ -157,7 +157,7 @@ const AdminDashboard = ({ onLogout }) => {
           {/* Tabs */}
           <div className="space-y-8">
             {/* Donations Section */}
-            <div className="card">
+            <div id="donations" className="card">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Manage Donations</h3>
 
               {/* Desktop Table */}
@@ -262,7 +262,7 @@ const AdminDashboard = ({ onLogout }) => {
             </div>
 
             {/* Users Section */}
-            <div className="card">
+            <div id="users" className="card">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Manage Users</h3>
 
               {/* Desktop Table */}

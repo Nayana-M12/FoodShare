@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Users, Utensils, Volunteer } from 'lucide-react';
+import { ArrowRight, Users, Utensils, User } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -67,7 +67,7 @@ const LandingPage = () => {
                   <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                        <Volunteer className="text-primary-600" size={24} />
+                        <User className="text-primary-600" size={24} />
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">Volunteers</p>

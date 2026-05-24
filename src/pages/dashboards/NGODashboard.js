@@ -162,7 +162,7 @@ const NGODashboard = ({ onLogout }) => {
           </div>
 
           {/* Available Foods Grid */}
-          <div className="mb-8">
+          <div id="foodGrid" className="mb-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Available Donations</h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFoods.map((food) => (
@@ -213,7 +213,7 @@ const NGODashboard = ({ onLogout }) => {
           </div>
 
           {/* Requested Donations */}
-          <div className="card">
+          <div id="requestedDonations" className="card">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Your Requested Donations</h3>
 
             {/* Desktop Table */}

@@ -94,7 +94,7 @@
 
             <!-- Demo Note -->
             <div class="demo-note">
-                <strong>✅ Now Working:</strong> Register an account and login with real credentials! Data stored locally.
+                <strong>✅ Now Working:</strong> Register an account and log in with real MySQL credentials.
             </div>
         </div>
     </div>
@@ -103,6 +103,7 @@
         <p>&copy; 2024 FoodShare. All rights reserved.</p>
     </footer>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
         function togglePassword() {
@@ -120,79 +121,29 @@
             }
         }
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const email = document.querySelector('input[name="email"]').value.trim();
-            const password = document.querySelector('input[name="password"]').value;
-            const role = document.querySelector('input[name="role"]:checked').value;
-            
-            // Validation
-            if (!email) {
-                appToast('Please enter your email.', 'error');
-                return;
-            }
-            if (!password) {
-                appToast('Please enter your password.', 'error');
-                return;
-            }
-            
-            // Get registered users from localStorage
-            const users = JSON.parse(localStorage.getItem('foodShareUsers') || '[]');
-            
-            // Check if user exists with matching credentials
-            const user = users.find(u => u.email === email && u.password === password);
-            
-            if (user) {
-                // Check if selected role matches registered role
-                if (user.userType !== role) {
-                    appToast('Login successful in demo view as ' + role.toUpperCase() + '.', 'warning', 2600);
+
+            const formData = new FormData(this);
+
+            try {
+                const result = await apiRequest('login.php', {
+                    data: formData,
+                });
+
+                const user = result.data?.user || {};
+                if (user.email) {
+                    localStorage.setItem('currentUser', JSON.stringify(user));
                 }
-                
-                // Login successful
-                appToast('Login successful. Welcome ' + user.fullName + '.', 'success');
-                
-                // Store current user session
-                localStorage.setItem('currentUser', JSON.stringify({
-                    fullName: user.fullName,
-                    email: user.email,
-                    userType: role
-                }));
-                
-                // Redirect to dashboard
-                const dashboardMap = {
-                    donor: 'donor-dashboard.html',
-                    ngo: 'ngo-dashboard.html',
-                    volunteer: 'volunteer-dashboard.html',
-                    admin: 'admin-dashboard.html'
-                };
-                
-                window.location.href = dashboardMap[role];
-            } else {
-                // Check if email exists but password is wrong
-                if (users.some(u => u.email === email)) {
-                    appToast('Incorrect password. Please try again.', 'error');
-                } else {
-                    // Demo mode: unknown email can still proceed to selected role dashboard
-                    appToast('Demo login successful as ' + role.toUpperCase() + '.', 'success');
 
-                    const dashboardMap = {
-                        donor: 'donor-dashboard.html',
-                        ngo: 'ngo-dashboard.html',
-                        volunteer: 'volunteer-dashboard.html',
-                        admin: 'admin-dashboard.html'
-                    };
+                appToast(result.message || 'Login successful.', 'success');
 
-                    localStorage.setItem('currentUser', JSON.stringify({
-                        fullName: 'Demo User',
-                        email: email,
-                        userType: role
-                    }));
-
-                    setTimeout(function() {
-                        window.location.href = dashboardMap[role];
-                    }, 500);
-                }
+                const redirectTarget = normalizeFrontendPath(
+                    result.data?.redirect || dashboardPathForRole(user.role || formData.get('role'))
+                );
+                window.location.href = redirectTarget;
+            } catch (error) {
+                appToast(error.message || 'Login failed.', 'error');
             }
         });
     </script>

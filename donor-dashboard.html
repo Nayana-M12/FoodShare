@@ -126,41 +126,10 @@
                                     <th>Expiry</th>
                                     <th>Status</th>
                                     <th>Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="donationTable">
-                                <tr>
-                                    <td>Biryani & Rice</td>
-                                    <td>20 portions</td>
-                                    <td>Cooked Food</td>
-                                    <td>2 hours</td>
-                                    <td><span class="badge badge-approved">Approved</span></td>
-                                    <td>2024-05-20</td>
-                                </tr>
-                                <tr>
-                                    <td>Fresh Fruits</td>
-                                    <td>50 kg</td>
-                                    <td>Fresh Produce</td>
-                                    <td>5 days</td>
-                                    <td><span class="badge badge-picked">Picked Up</span></td>
-                                    <td>2024-05-19</td>
-                                </tr>
-                                <tr>
-                                    <td>Bread & Bakery</td>
-                                    <td>100 pieces</td>
-                                    <td>Bakery Items</td>
-                                    <td>1 day</td>
-                                    <td><span class="badge badge-delivered">Delivered</span></td>
-                                    <td>2024-05-18</td>
-                                </tr>
-                                <tr>
-                                    <td>Prepared Meals</td>
-                                    <td>30 servings</td>
-                                    <td>Cooked Food</td>
-                                    <td>4 hours</td>
-                                    <td><span class="badge badge-pending">Pending</span></td>
-                                    <td>2024-05-21</td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -169,8 +138,11 @@
         </main>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
+        let editingDonationId = null;
+
         function openDonationForm() {
             document.getElementById('newDonationForm').style.display = 'block';
             document.querySelector('.data-table').scrollIntoView({ behavior: 'smooth' });
@@ -178,25 +150,121 @@
 
         function closeDonationForm() {
             document.getElementById('newDonationForm').style.display = 'none';
+            editingDonationId = null;
+            document.getElementById('donationForm').reset();
         }
 
-        document.getElementById('donationForm').addEventListener('submit', function(e) {
+        function renderDonationRows(donations) {
+            const table = document.getElementById('donationTable');
+            window.currentDonations = donations || [];
+
+            if (!donations || donations.length === 0) {
+                table.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px; color: #6b7280;">No donations found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = donations.map(donation => `
+                <tr>
+                    <td>${escapeHtml(donation.food_name)}</td>
+                    <td>${escapeHtml(donation.quantity)}</td>
+                    <td>${escapeHtml(donation.food_type)}</td>
+                    <td>${escapeHtml(donation.expiry_time)}</td>
+                    <td><span class="${badgeClassForDonationStatus(donation.status)}">${escapeHtml(donation.status)}</span></td>
+                    <td>${formatDate(donation.created_at)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button type="button" class="action-btn approve" onclick="editDonation(${donation.id})" title="Edit">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="action-btn reject" onclick="deleteDonation(${donation.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function fillDonationForm(donation) {
+            document.querySelector('input[name="foodName"]').value = donation.food_name || '';
+            document.querySelector('input[name="quantity"]').value = donation.quantity || '';
+            document.querySelector('select[name="foodType"]').value = donation.food_type || '';
+            document.querySelector('input[name="expiryTime"]').value = donation.expiry_time || '';
+            document.querySelector('textarea[name="pickupAddress"]').value = donation.pickup_address || '';
+        }
+
+        function editDonation(id) {
+            const donation = (window.currentDonations || []).find(item => String(item.id) === String(id));
+            if (!donation) {
+                appToast('Donation not found.', 'error');
+                return;
+            }
+
+            editingDonationId = donation.id;
+            fillDonationForm(donation);
+            openDonationForm();
+        }
+
+        async function loadDonations() {
+            try {
+                const result = await apiRequest('view_donations.php', { method: 'GET' });
+                renderDonationRows(result.data?.donations || []);
+            } catch (error) {
+                appToast(error.message || 'Unable to load donations.', 'error');
+            }
+        }
+
+        async function deleteDonation(id) {
+            appConfirm({
+                title: 'Delete Donation',
+                message: 'Delete this donation permanently?',
+                confirmText: 'Delete',
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('delete_donation.php', {
+                            data: { donation_id: id }
+                        });
+                        appToast('Donation deleted successfully.', 'success');
+                        loadDonations();
+                    } catch (error) {
+                        appToast(error.message || 'Unable to delete donation.', 'error');
+                    }
+                }
+            });
+        }
+
+        document.getElementById('donationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const formData = new FormData(this);
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>${formData.get('foodName')}</td>
-                <td>${formData.get('quantity')}</td>
-                <td>${formData.get('foodType')}</td>
-                <td>${formData.get('expiryTime')}</td>
-                <td><span class="badge badge-pending">Pending</span></td>
-                <td>${new Date().toISOString().split('T')[0]}</td>
-            `;
-            
-            document.getElementById('donationTable').insertBefore(newRow, document.getElementById('donationTable').firstChild);
-            closeDonationForm();
-            this.reset();
+
+            const formData = {
+                foodName: document.querySelector('input[name="foodName"]').value.trim(),
+                quantity: document.querySelector('input[name="quantity"]').value.trim(),
+                foodType: document.querySelector('select[name="foodType"]').value,
+                expiryTime: document.querySelector('input[name="expiryTime"]').value.trim(),
+                pickupAddress: document.querySelector('textarea[name="pickupAddress"]').value.trim(),
+            };
+
+            try {
+                if (editingDonationId) {
+                    await apiRequest('update_donation.php', {
+                        data: {
+                            donation_id: editingDonationId,
+                            ...formData,
+                        }
+                    });
+                    appToast('Donation updated successfully.', 'success');
+                } else {
+                    await apiRequest('add_donation.php', {
+                        data: formData,
+                    });
+                    appToast('Donation submitted successfully.', 'success');
+                }
+
+                closeDonationForm();
+                loadDonations();
+            } catch (error) {
+                appToast(error.message || 'Unable to save donation.', 'error');
+            }
         });
 
         function logout() {
@@ -204,11 +272,18 @@
                 title: 'Logout',
                 message: 'Are you sure you want to logout?',
                 confirmText: 'Logout',
-                onConfirm: function() {
-                    window.location.href = 'index.html';
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors and continue.
+                    }
+                    window.location.href = 'login.html';
                 }
             });
         }
+
+        loadDonations();
     </script>
 </body>
 </html>

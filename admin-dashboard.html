@@ -258,39 +258,155 @@
         </main>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
-        function approveDonation(btn) {
-            const row = btn.closest('tr');
-            const statusCell = row.querySelector('td:nth-child(4)');
-            statusCell.innerHTML = '<span class="badge badge-approved">Approved</span>';
-            
-            const actionsCell = row.querySelector('td:last-child');
-            actionsCell.innerHTML = '<span class="text-muted">—</span>';
-            
-            appToast('Donation approved successfully.', 'success');
+        let adminDashboardData = {
+            donations: [],
+            users: [],
+        };
+
+        function renderSummary(summary) {
+            const statCards = document.querySelectorAll('.admin-stats .stat-card .stat-content h3');
+            const values = [summary.users, summary.donations, summary.active_deliveries, 94.2];
+
+            statCards.forEach((element, index) => {
+                if (index === 3) {
+                    element.textContent = `${values[index]}%`;
+                } else {
+                    element.textContent = String(values[index] ?? '0');
+                }
+            });
         }
 
-        function rejectDonation(btn) {
-            const row = btn.closest('tr');
-            const statusCell = row.querySelector('td:nth-child(4)');
-            statusCell.innerHTML = '<span class="badge" style="background: #fee2e2; color: #991b1b;">Rejected</span>';
-            
-            const actionsCell = row.querySelector('td:last-child');
-            actionsCell.innerHTML = '<span class="text-muted">—</span>';
-            
-            appToast('Donation rejected.', 'warning');
+        function renderDonations() {
+            const table = document.getElementById('donationsTable');
+
+            if (!adminDashboardData.donations.length) {
+                table.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: #6b7280;">No donations found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = adminDashboardData.donations.map(donation => {
+                const status = String(donation.status || '').toLowerCase();
+                const statusClass = status === 'approved' ? 'badge badge-approved' : status === 'rejected' ? 'badge badge-pending' : 'badge badge-pending';
+                const canAction = status === 'pending' || status === 'requested';
+
+                return `
+                    <tr>
+                        <td>
+                            <div>
+                                <p class="font-medium">${escapeHtml(donation.donor_name || 'Unknown')}</p>
+                                <p class="text-small">${escapeHtml(donation.donor_phone || donation.donor_email || '')}</p>
+                            </div>
+                        </td>
+                        <td>${escapeHtml(donation.food_name)}</td>
+                        <td>${escapeHtml(donation.quantity)}</td>
+                        <td><span class="${statusClass}">${escapeHtml(donation.status)}</span></td>
+                        <td>${formatDate(donation.created_at)}</td>
+                        <td>
+                            ${canAction ? `
+                                <div class="action-buttons">
+                                    <button class="action-btn approve" onclick="approveDonation(${donation.id})" title="Approve">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="action-btn reject" onclick="rejectDonation(${donation.id})" title="Reject">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            ` : '<span class="text-muted">—</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function deactivateUser(btn) {
-            const row = btn.closest('tr');
-            const statusCell = row.querySelector('td:nth-child(4)');
-            statusCell.innerHTML = '<span class="badge" style="background: #f3f4f6; color: #374151;">Inactive</span>';
-            
-            const actionsCell = row.querySelector('td:last-child');
-            actionsCell.innerHTML = '<span class="text-muted">—</span>';
-            
-            appToast('User deactivated.', 'warning');
+        function renderUsers() {
+            const table = document.getElementById('usersTable');
+
+            if (!adminDashboardData.users.length) {
+                table.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: #6b7280;">No users found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = adminDashboardData.users.map(user => {
+                const roleClass = 'badge';
+                const isActive = String(user.status || '').toLowerCase() === 'active';
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(user.full_name)}</td>
+                        <td>${escapeHtml(user.email)}</td>
+                        <td><span class="${roleClass}" style="background: #dbeafe; color: #1e40af;">${escapeHtml(user.role)}</span></td>
+                        <td><span class="${isActive ? 'badge badge-delivered' : 'badge'}" style="${isActive ? '' : 'background: #f3f4f6; color: #374151;'}">${escapeHtml(user.status)}</span></td>
+                        <td>${formatDate(user.created_at)}</td>
+                        <td>
+                            ${isActive ? `<button class="action-link" onclick="deactivateUser(${user.id})">Deactivate</button>` : '<span class="text-muted">—</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadAdminDashboard() {
+            try {
+                const result = await apiRequest('admin_dashboard.php', { method: 'GET' });
+                renderSummary(result.data?.summary || {});
+            } catch (error) {
+                appToast(error.message || 'Unable to load dashboard summary.', 'error');
+            }
+
+            try {
+                const donationsResult = await apiRequest('approve_donations.php', { method: 'GET', data: { action: 'list' } });
+                adminDashboardData.donations = donationsResult.data?.donations || [];
+                renderDonations();
+            } catch (error) {
+                appToast(error.message || 'Unable to load donations.', 'error');
+            }
+
+            try {
+                const usersResult = await apiRequest('manage_users.php', { method: 'GET', data: { action: 'list' } });
+                adminDashboardData.users = usersResult.data?.users || [];
+                renderUsers();
+            } catch (error) {
+                appToast(error.message || 'Unable to load users.', 'error');
+            }
+        }
+
+        async function approveDonation(id) {
+            try {
+                await apiRequest('approve_donations.php', {
+                    data: { action: 'approve', donation_id: id },
+                });
+                appToast('Donation approved successfully.', 'success');
+                loadAdminDashboard();
+            } catch (error) {
+                appToast(error.message || 'Unable to approve donation.', 'error');
+            }
+        }
+
+        async function rejectDonation(id) {
+            try {
+                await apiRequest('approve_donations.php', {
+                    data: { action: 'reject', donation_id: id, reason: 'Rejected by admin.' },
+                });
+                appToast('Donation rejected.', 'warning');
+                loadAdminDashboard();
+            } catch (error) {
+                appToast(error.message || 'Unable to reject donation.', 'error');
+            }
+        }
+
+        async function deactivateUser(id) {
+            try {
+                await apiRequest('manage_users.php', {
+                    data: { action: 'update_status', user_id: id, status: 'inactive' },
+                });
+                appToast('User deactivated.', 'warning');
+                loadAdminDashboard();
+            } catch (error) {
+                appToast(error.message || 'Unable to deactivate user.', 'error');
+            }
         }
 
         function logout() {
@@ -298,11 +414,18 @@
                 title: 'Logout',
                 message: 'Are you sure you want to logout?',
                 confirmText: 'Logout',
-                onConfirm: function() {
-                    window.location.href = 'index.html';
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors.
+                    }
+                    window.location.href = 'login.html';
                 }
             });
         }
+
+        loadAdminDashboard();
     </script>
 </body>
 </html>

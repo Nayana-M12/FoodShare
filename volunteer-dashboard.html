@@ -199,57 +199,113 @@
         </main>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
     <script>
-        function markPickedUp(btn) {
-            const card = btn.closest('.delivery-card');
-            const header = card.querySelector('.delivery-header');
-            
-            // Update status badge
-            const statusBadge = header.querySelector('.badge-status-assigned');
-            if (statusBadge) {
-                statusBadge.className = 'badge badge-status-transit';
-                statusBadge.textContent = 'In Transit';
-            }
-            
-            // Update button
-            btn.textContent = 'Complete Delivery';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            btn.onclick = function() { completeDelivery(this); };
-        }
+        let deliveries = [];
 
-        function completeDelivery(btn) {
-            const card = btn.closest('.delivery-card');
-            const foodName = card.querySelector('h4').textContent;
-            const quantity = card.querySelector('p').textContent;
-            const pickupLocation = card.querySelector('.pickup .location-name').textContent;
-            const deliveryLocation = card.querySelector('.delivery .location-name').textContent;
-
-            // Add to completed table
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>${foodName}</td>
-                <td>${quantity}</td>
-                <td>${pickupLocation}</td>
-                <td>${deliveryLocation}</td>
-                <td>Just now</td>
-                <td><span class="stars">★★★★★</span></td>
-            `;
-            document.getElementById('completedTable').insertBefore(newRow, document.getElementById('completedTable').firstChild);
-
-            // Remove from active
-            card.style.opacity = '0.5';
-            card.style.pointerEvents = 'none';
-            setTimeout(() => {
-                card.remove();
-                updateActiveCount();
-            }, 300);
+        function getActiveDeliveries() {
+            return deliveries.filter(delivery => !['delivered', 'completed'].includes(String(delivery.status || '').toLowerCase()));
         }
 
         function updateActiveCount() {
-            const count = document.querySelectorAll('.delivery-card').length;
+            const count = getActiveDeliveries().length;
             document.getElementById('activeCount').textContent = count;
+        }
+
+        function renderDeliveries() {
+            const activeDeliveries = getActiveDeliveries();
+            const activeList = document.getElementById('deliveriesList');
+            const completedTable = document.getElementById('completedTable');
+
+            if (!activeDeliveries.length) {
+                activeList.innerHTML = '<div class="delivery-card"><p style="color:#6b7280;">No active deliveries at the moment.</p></div>';
+            } else {
+                activeList.innerHTML = activeDeliveries.map(delivery => {
+                    const buttonStatus = String(delivery.status || '').toLowerCase() === 'assigned' ? 'picked_up' : 'completed';
+                    const buttonLabel = buttonStatus === 'picked_up' ? 'Mark as Picked Up' : 'Complete Delivery';
+                    const badgeClass = buttonStatus === 'picked_up' ? 'badge badge-status-assigned' : 'badge badge-status-transit';
+
+                    return `
+                        <div class="delivery-card">
+                            <div class="delivery-header">
+                                <div>
+                                    <h4>${escapeHtml(delivery.food_name)}</h4>
+                                    <p>${escapeHtml(delivery.quantity)}</p>
+                                </div>
+                                <div class="delivery-badges">
+                                    <span class="badge badge-priority-high">${escapeHtml((delivery.status || 'assigned').replace('_', ' '))}</span>
+                                    <span class="${badgeClass}">${escapeHtml(delivery.status)}</span>
+                                </div>
+                            </div>
+
+                            <div class="delivery-grid">
+                                <div class="location-box pickup">
+                                    <h5><i class="fas fa-map-marker-alt"></i> Pickup Location</h5>
+                                    <p class="location-name">${escapeHtml(delivery.pickup_address || 'Pickup address not available')}</p>
+                                    <p class="location-phone"><a href="tel:${escapeHtml(delivery.ngo_phone || '')}">${escapeHtml(delivery.ngo_phone || 'No phone available')}</a></p>
+                                </div>
+
+                                <div class="location-box delivery">
+                                    <h5><i class="fas fa-map-marker-alt"></i> Delivery To</h5>
+                                    <p class="location-name">${escapeHtml(delivery.ngo_name || 'Assigned NGO')}</p>
+                                    <p class="location-phone"><a href="tel:${escapeHtml(delivery.ngo_phone || '')}">${escapeHtml(delivery.ngo_phone || 'No phone available')}</a></p>
+                                </div>
+                            </div>
+
+                            <div class="delivery-actions">
+                                <button class="btn btn-primary" onclick="updateDeliveryStatus(${delivery.id}, '${buttonStatus}')">${buttonLabel}</button>
+                                <button class="btn btn-outline">Need Help?</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            if (!deliveries.length) {
+                completedTable.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: #6b7280;">No completed deliveries yet.</td></tr>';
+            } else {
+                const completedDeliveries = deliveries.filter(delivery => ['delivered', 'completed'].includes(String(delivery.status || '').toLowerCase()));
+
+                completedTable.innerHTML = completedDeliveries.map(delivery => `
+                    <tr>
+                        <td>${escapeHtml(delivery.food_name)}</td>
+                        <td>${escapeHtml(delivery.quantity)}</td>
+                        <td>${escapeHtml(delivery.pickup_address || 'Pickup address not available')}</td>
+                        <td>${escapeHtml(delivery.ngo_name || 'Assigned NGO')}</td>
+                        <td>${formatDate(delivery.delivered_at || delivery.picked_up_at || delivery.assigned_at)}</td>
+                        <td><span class="stars">★★★★★</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            updateActiveCount();
+        }
+
+        async function loadDeliveries() {
+            try {
+                const result = await apiRequest('volunteer_deliveries.php', { method: 'GET' });
+                deliveries = result.data?.deliveries || [];
+                renderDeliveries();
+            } catch (error) {
+                appToast(error.message || 'Unable to load deliveries.', 'error');
+            }
+        }
+
+        async function updateDeliveryStatus(id, status) {
+            try {
+                await apiRequest('update_delivery_status.php', {
+                    data: {
+                        delivery_id: id,
+                        status: status,
+                    }
+                });
+
+                appToast('Delivery status updated successfully.', 'success');
+                await loadDeliveries();
+            } catch (error) {
+                appToast(error.message || 'Unable to update delivery status.', 'error');
+            }
         }
 
         function logout() {
@@ -257,11 +313,18 @@
                 title: 'Logout',
                 message: 'Are you sure you want to logout?',
                 confirmText: 'Logout',
-                onConfirm: function() {
-                    window.location.href = 'index.html';
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors.
+                    }
+                    window.location.href = 'login.html';
                 }
             });
         }
+
+        loadDeliveries();
     </script>
 </body>
 </html>

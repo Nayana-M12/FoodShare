@@ -158,6 +158,101 @@ const navMenu = document.getElementById('navMenu');
     };
 })();
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getApiBaseCandidates() {
+    const candidates = [];
+    const configuredBase = String(window.FOODSHARE_API_BASE_URL || '').trim();
+
+    if (configuredBase) {
+        candidates.push(configuredBase);
+    }
+
+    if (window.location.protocol !== 'file:') {
+        candidates.push(new URL('backend/', window.location.href).toString());
+    }
+
+    candidates.push('http://localhost/Food-donation/backend/');
+    candidates.push('http://127.0.0.1/Food-donation/backend/');
+
+    return [...new Set(candidates.map((value) => value.endsWith('/') ? value : `${value}/`))];
+}
+
+function fallbackApiBaseUrl() {
+    return getApiBaseCandidates()[0] || 'http://localhost/Food-donation/backend/';
+}
+
+function apiUrl(path) {
+    return new URL(String(path).replace(/^\//, ''), fallbackApiBaseUrl()).toString();
+}
+
+function resolveApiUrls(path) {
+    const normalizedPath = String(path).replace(/^\//, '');
+    const urls = getApiBaseCandidates().map((baseUrl) => new URL(normalizedPath, baseUrl).toString());
+
+    return [...new Set(urls)];
+}
+
+async function apiRequest(path, options = {}) {
+    // Backend was removed from the project. Fail fast with a clear error message.
+    const finalError = new Error('Backend unavailable: the server-side API has been removed.');
+    finalError.status = 0;
+    finalError.payload = { success: false, message: finalError.message };
+    throw finalError;
+}
+
+function dashboardPathForRole(role) {
+    const routeMap = {
+        donor: 'donor-dashboard.html',
+        ngo: 'ngo-dashboard.html',
+        volunteer: 'volunteer-dashboard.html',
+        admin: 'admin-dashboard.html',
+    };
+
+    return routeMap[String(role || '').toLowerCase()] || 'index.html';
+}
+
+function normalizeFrontendPath(path) {
+    return String(path || '')
+        .replace(/^\/+/, '')
+        .replace(/^(?:\.\.\/)+/, '')
+        .replace(/^\.\//, '');
+}
+
+function badgeClassForDonationStatus(status) {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized.includes('approved')) return 'badge badge-approved';
+    if (normalized.includes('picked') || normalized.includes('transit') || normalized.includes('assigned')) return 'badge badge-picked';
+    if (normalized.includes('delivered') || normalized.includes('completed')) return 'badge badge-delivered';
+    if (normalized.includes('rejected')) return 'badge badge-pending';
+    return 'badge badge-pending';
+}
+
+function badgeClassForDeliveryStatus(status) {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized === 'assigned') return 'badge badge-status-assigned';
+    if (normalized === 'picked_up') return 'badge badge-status-transit';
+    if (normalized === 'in_transit') return 'badge badge-status-transit';
+    if (normalized === 'delivered' || normalized === 'completed') return 'badge badge-delivered';
+    return 'badge badge-pending';
+}
+
+function formatDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toISOString().split('T')[0];
+}
+
 if (navToggle) {
     navToggle.addEventListener('click', function() {
         navMenu.style.display = navMenu.style.display === 'flex' ? 'none' : 'flex';
