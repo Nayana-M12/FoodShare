@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGO Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-leaf"></i>
+                <span>FoodShare</span>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="ngo-dashboard.html" class="menu-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="ngo-dashboard.html#foodGrid" class="menu-item">
+                    <i class="fas fa-utensils"></i>
+                    <span>Available Food</span>
+                </a>
+                <a href="ngo-dashboard.html#requestedDonations" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Requests</span>
+                </a>
+                <!-- Profile removed -->
+            </nav>
+
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar" id="top">
+                <div class="top-bar-content">
+                    <h1>NGO Dashboard</h1>
+                    <p>Browse and request food donations</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div class="content-wrapper">
+                <!-- Welcome Card -->
+                <div class="welcome-card">
+                    <h2>Welcome to FoodShare NGO Portal! 🤝</h2>
+                    <p>Find surplus food from donors in your area and request pickups for your community.</p>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="card">
+                    <h3>Find Available Food</h3>
+                    <div class="search-filter">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchFood" placeholder="Search by food name or donor...">
+                        </div>
+                        <div class="filter-box">
+                            <i class="fas fa-filter"></i>
+                            <select id="filterType">
+                                <option value="all">All Food Types</option>
+                                <option value="Cooked Food">Cooked Food</option>
+                                <option value="Fresh Produce">Fresh Produce</option>
+                                <option value="Bakery Items">Bakery Items</option>
+                                <option value="Packaged Food">Packaged Food</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Available Foods Grid -->
+                <div class="section-title">
+                    <h3>Available Donations</h3>
+                </div>
+                <div class="food-grid" id="foodGrid">
+                    <div class="food-card">
+                        <div class="food-header">
+                            <div>
+                                <h4>Biryani & Rice</h4>
+                                <p>Taj Restaurant</p>
+                            </div>
+                            <span class="food-type">Cooked Food</span>
+                        </div>
+                        <div class="food-details">
+                            <p><i class="fas fa-box"></i> 20 portions</p>
+                            <p><i class="fas fa-clock"></i> Expires in 2 hours</p>
+                            <p><i class="fas fa-map-marker-alt"></i> 5 km away</p>
+                        </div>
+                        <p class="food-posted">Posted 30 minutes ago</p>
+                        <button class="btn btn-secondary" onclick="requestPickup(this)">Request Pickup</button>
+                    </div>
+
+                    <div class="food-card">
+                        <div class="food-header">
+                            <div>
+                                <h4>Fresh Vegetables</h4>
+                                <p>Green Market</p>
+                            </div>
+                            <span class="food-type">Fresh Produce</span>
+                        </div>
+                        <div class="food-details">
+                            <p><i class="fas fa-box"></i> 50 kg</p>
+                            <p><i class="fas fa-clock"></i> Expires in 5 days</p>
+                            <p><i class="fas fa-map-marker-alt"></i> 8 km away</p>
+                        </div>
+                        <p class="food-posted">Posted 2 hours ago</p>
+                        <button class="btn btn-secondary" onclick="requestPickup(this)">Request Pickup</button>
+                    </div>
+
+                    <div class="food-card">
+                        <div class="food-header">
+                            <div>
+                                <h4>Bread & Bakery</h4>
+                                <p>Sweet Bakery</p>
+                            </div>
+                            <span class="food-type">Bakery Items</span>
+                        </div>
+                        <div class="food-details">
+                            <p><i class="fas fa-box"></i> 100 pieces</p>
+                            <p><i class="fas fa-clock"></i> Expires in 1 day</p>
+                            <p><i class="fas fa-map-marker-alt"></i> 3 km away</p>
+                        </div>
+                        <p class="food-posted">Posted 45 minutes ago</p>
+                        <button class="btn btn-secondary" onclick="requestPickup(this)">Request Pickup</button>
+                    </div>
+
+                    <div class="food-card">
+                        <div class="food-header">
+                            <div>
+                                <h4>Canned Goods</h4>
+                                <p>Metro Supermarket</p>
+                            </div>
+                            <span class="food-type">Packaged Food</span>
+                        </div>
+                        <div class="food-details">
+                            <p><i class="fas fa-box"></i> 200 items</p>
+                            <p><i class="fas fa-clock"></i> Expires in 6 months</p>
+                            <p><i class="fas fa-map-marker-alt"></i> 12 km away</p>
+                        </div>
+                        <p class="food-posted">Posted 1 hour ago</p>
+                        <button class="btn btn-secondary" onclick="requestPickup(this)">Request Pickup</button>
+                    </div>
+                </div>
+
+                <!-- Requested Donations -->
+                <div class="card" id="requestedDonations">
+                    <h3>Your Requested Donations</h3>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Food Item</th>
+                                    <th>Quantity</th>
+                                    <th>Donor</th>
+                                    <th>Status</th>
+                                    <th>ETA</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requestedDonationsTable">
+                                <tr>
+                                    <td>Biryani & Rice</td>
+                                    <td>20 portions</td>
+                                    <td>Taj Restaurant</td>
+                                    <td><span class="badge badge-approved">Approved</span></td>
+                                    <td>2 hours</td>
+                                    <td>2024-05-20</td>
+                                </tr>
+                                <tr>
+                                    <td>Fresh Fruits</td>
+                                    <td>50 kg</td>
+                                    <td>Metro Store</td>
+                                    <td><span class="badge badge-picked">In Transit</span></td>
+                                    <td>Arriving soon</td>
+                                    <td>2024-05-19</td>
+                                </tr>
+                                <tr>
+                                    <td>Prepared Meals</td>
+                                    <td>30 servings</td>
+                                    <td>Paradise Hotel</td>
+                                    <td><span class="badge badge-delivered">Delivered</span></td>
+                                    <td>Completed</td>
+                                    <td>2024-05-18</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+    <script>
+        let availableFoods = [];
+        let requestHistory = [];
+
+        function renderAvailableFoods() {
+            const searchTerm = document.getElementById('searchFood').value.toLowerCase();
+            const filterType = document.getElementById('filterType').value;
+            const foodGrid = document.getElementById('foodGrid');
+
+            const filteredFoods = availableFoods.filter(food => {
+                const foodName = String(food.food_name || '').toLowerCase();
+                const donorName = String(food.donor_name || '').toLowerCase();
+                const foodType = String(food.food_type || '');
+                const matchesSearch = foodName.includes(searchTerm) || donorName.includes(searchTerm);
+                const matchesFilter = filterType === 'all' || foodType === filterType;
+                return matchesSearch && matchesFilter;
+            });
+
+            if (filteredFoods.length === 0) {
+                foodGrid.innerHTML = '<div class="food-card"><p style="color:#6b7280;">No food donations matching your search.</p></div>';
+                return;
+            }
+
+            foodGrid.innerHTML = filteredFoods.map(food => `
+                <div class="food-card">
+                    <div class="food-header">
+                        <div>
+                            <h4>${escapeHtml(food.food_name)}</h4>
+                            <p>${escapeHtml(food.donor_name)}</p>
+                        </div>
+                        <span class="food-type">${escapeHtml(food.food_type)}</span>
+                    </div>
+                    <div class="food-details">
+                        <p><i class="fas fa-box"></i> ${escapeHtml(food.quantity)}</p>
+                        <p><i class="fas fa-clock"></i> Expires in ${escapeHtml(food.expiry_time)}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(food.pickup_address || 'Pickup location available')}</p>
+                    </div>
+                    <p class="food-posted">Posted ${formatDate(food.created_at)}</p>
+                    <button class="btn btn-secondary" onclick="requestPickup(${food.id})">Request Pickup</button>
+                </div>
+            `).join('');
+        }
+
+        function renderRequestHistory() {
+            const table = document.getElementById('requestedDonationsTable');
+
+            if (!requestHistory.length) {
+                table.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px; color: #6b7280;">No pickup requests yet.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = requestHistory.map(request => `
+                <tr>
+                    <td>${escapeHtml(request.food_name)}</td>
+                    <td>${escapeHtml(request.quantity)}</td>
+                    <td>${escapeHtml(request.donor_name || '—')}</td>
+                    <td><span class="${badgeClassForDonationStatus(request.status)}">${escapeHtml(request.status)}</span></td>
+                    <td>${escapeHtml(request.pickup_date || 'Pending')}</td>
+                    <td>${formatDate(request.requested_at)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadAvailableFoods() {
+            try {
+                const result = await apiRequest('view_available_food.php', { method: 'GET' });
+                availableFoods = result.data?.food || [];
+                renderAvailableFoods();
+            } catch (error) {
+                appToast(error.message || 'Unable to load available food.', 'error');
+            }
+        }
+
+        async function loadRequestHistory() {
+            try {
+                const result = await apiRequest('ngo_requests.php', { method: 'GET' });
+                requestHistory = result.data?.requests || [];
+                renderRequestHistory();
+            } catch (error) {
+                appToast(error.message || 'Unable to load request history.', 'error');
+            }
+        }
+
+        async function requestPickup(donationId) {
+            try {
+                await apiRequest('request_pickup.php', {
+                    data: { donation_id: donationId },
+                });
+                appToast('Pickup requested successfully.', 'success');
+                await loadAvailableFoods();
+                await loadRequestHistory();
+            } catch (error) {
+                appToast(error.message || 'Unable to request pickup.', 'error');
+            }
+        }
+
+        function logout() {
+            appConfirm({
+                title: 'Logout',
+                message: 'Are you sure you want to logout?',
+                confirmText: 'Logout',
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors.
+                    }
+                    window.location.href = 'login.html';
+                }
+            });
+        }
+
+        document.getElementById('searchFood').addEventListener('keyup', renderAvailableFoods);
+        document.getElementById('filterType').addEventListener('change', renderAvailableFoods);
+
+        loadAvailableFoods();
+        loadRequestHistory();
+    </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-leaf"></i>
+                <span>FoodShare</span>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="top-bar-content">
+                    <h1>Donor Dashboard</h1>
+                    <p>Manage your food donations</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div class="content-wrapper">
+                <!-- Welcome Card -->
+                <div class="welcome-card">
+                    <h2>Welcome, Food Donor! 👋</h2>
+                    <p>Thank you for contributing to reduce food waste and feed those in need. Your donations make a real difference.</p>
+                    <div class="welcome-stats">
+                        <div class="welcome-stat">
+                            <p>Total Donations</p>
+                            <span>24</span>
+                        </div>
+                        <div class="welcome-stat">
+                            <p>Meals Shared</p>
+                            <span>580+</span>
+                        </div>
+                        <div class="welcome-stat">
+                            <p>Lives Helped</p>
+                            <span>145+</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Donation Form -->
+                <div id="newDonationForm" style="display: none;" class="card">
+                    <div class="card-header">
+                        <h3>Add New Food Donation</h3>
+                        <button class="close-btn" onclick="closeDonationForm()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="donationForm" class="form-grid">
+                        <div class="form-group">
+                            <label>Food Name *</label>
+                            <input type="text" name="foodName" placeholder="e.g., Biryani & Rice" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Quantity *</label>
+                            <input type="text" name="quantity" placeholder="e.g., 20 portions" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Food Type *</label>
+                            <select name="foodType" required>
+                                <option value="">Select food type</option>
+                                <option value="Cooked Food">Cooked Food</option>
+                                <option value="Fresh Produce">Fresh Produce</option>
+                                <option value="Bakery Items">Bakery Items</option>
+                                <option value="Packaged Food">Packaged Food</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Expiry Time *</label>
+                            <input type="text" name="expiryTime" placeholder="e.g., 2 hours" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Pickup Address *</label>
+                            <textarea name="pickupAddress" placeholder="Full address with landmark" required></textarea>
+                        </div>
+
+                        <div class="form-actions full-width">
+                            <button type="submit" class="btn btn-primary">Submit Donation</button>
+                            <button type="button" class="btn btn-outline" onclick="closeDonationForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Donation History -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Donation History</h3>
+                        <button class="btn btn-primary" onclick="openDonationForm()">
+                            <i class="fas fa-plus"></i> Add New Donation
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Food Name</th>
+                                    <th>Quantity</th>
+                                    <th>Type</th>
+                                    <th>Expiry</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="donationTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+    <script>
+        let editingDonationId = null;
+
+        function openDonationForm() {
+            document.getElementById('newDonationForm').style.display = 'block';
+            document.querySelector('.data-table').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeDonationForm() {
+            document.getElementById('newDonationForm').style.display = 'none';
+            editingDonationId = null;
+            document.getElementById('donationForm').reset();
+        }
+
+        function renderDonationRows(donations) {
+            const table = document.getElementById('donationTable');
+            window.currentDonations = donations || [];
+
+            if (!donations || donations.length === 0) {
+                table.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px; color: #6b7280;">No donations found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = donations.map(donation => `
+                <tr>
+                    <td>${escapeHtml(donation.food_name)}</td>
+                    <td>${escapeHtml(donation.quantity)}</td>
+                    <td>${escapeHtml(donation.food_type)}</td>
+                    <td>${escapeHtml(donation.expiry_time)}</td>
+                    <td><span class="${badgeClassForDonationStatus(donation.status)}">${escapeHtml(donation.status)}</span></td>
+                    <td>${formatDate(donation.created_at)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button type="button" class="action-btn approve" onclick="editDonation(${donation.id})" title="Edit">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="action-btn reject" onclick="deleteDonation(${donation.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function fillDonationForm(donation) {
+            document.querySelector('input[name="foodName"]').value = donation.food_name || '';
+            document.querySelector('input[name="quantity"]').value = donation.quantity || '';
+            document.querySelector('select[name="foodType"]').value = donation.food_type || '';
+            document.querySelector('input[name="expiryTime"]').value = donation.expiry_time || '';
+            document.querySelector('textarea[name="pickupAddress"]').value = donation.pickup_address || '';
+        }
+
+        function editDonation(id) {
+            const donation = (window.currentDonations || []).find(item => String(item.id) === String(id));
+            if (!donation) {
+                appToast('Donation not found.', 'error');
+                return;
+            }
+
+            editingDonationId = donation.id;
+            fillDonationForm(donation);
+            openDonationForm();
+        }
+
+        async function loadDonations() {
+            try {
+                const result = await apiRequest('view_donations.php', { method: 'GET' });
+                renderDonationRows(result.data?.donations || []);
+            } catch (error) {
+                appToast(error.message || 'Unable to load donations.', 'error');
+            }
+        }
+
+        async function deleteDonation(id) {
+            appConfirm({
+                title: 'Delete Donation',
+                message: 'Delete this donation permanently?',
+                confirmText: 'Delete',
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('delete_donation.php', {
+                            data: { donation_id: id }
+                        });
+                        appToast('Donation deleted successfully.', 'success');
+                        loadDonations();
+                    } catch (error) {
+                        appToast(error.message || 'Unable to delete donation.', 'error');
+                    }
+                }
+            });
+        }
+
+        document.getElementById('donationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                foodName: document.querySelector('input[name="foodName"]').value.trim(),
+                quantity: document.querySelector('input[name="quantity"]').value.trim(),
+                foodType: document.querySelector('select[name="foodType"]').value,
+                expiryTime: document.querySelector('input[name="expiryTime"]').value.trim(),
+                pickupAddress: document.querySelector('textarea[name="pickupAddress"]').value.trim(),
+            };
+
+            try {
+                if (editingDonationId) {
+                    await apiRequest('update_donation.php', {
+                        data: {
+                            donation_id: editingDonationId,
+                            ...formData,
+                        }
+                    });
+                    appToast('Donation updated successfully.', 'success');
+                } else {
+                    await apiRequest('add_donation.php', {
+                        data: formData,
+                    });
+                    appToast('Donation submitted successfully.', 'success');
+                }
+
+                closeDonationForm();
+                loadDonations();
+            } catch (error) {
+                appToast(error.message || 'Unable to save donation.', 'error');
+            }
+        });
+
+        function logout() {
+            appConfirm({
+                title: 'Logout',
+                message: 'Are you sure you want to logout?',
+                confirmText: 'Logout',
+                onConfirm: async function() {
+                    try {
+                        await apiRequest('logout.php', { method: 'POST' });
+                    } catch (error) {
+                        // Ignore logout errors and continue.
+                    }
+                    window.location.href = 'login.html';
+                }
+            });
+        }
+
+        loadDonations();
+    </script>
+</body>
+</html>
