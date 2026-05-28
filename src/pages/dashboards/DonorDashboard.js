@@ -1,8 +1,42 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
+import { createDonation, getDonations, getNgos } from '../../utils/api';
+import NotificationsPanel from '../../components/NotificationsPanel';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+const getStoredUserInfo = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('foodshare_user') || '{}');
+    return {
+      donorId: user.donor_id || user.donorId || null,
+      userId: user.id || user.user_id || user.userId || null,
+    };
+  } catch (error) {
+    return { donorId: null, userId: null };
+  }
+};
+
+const normalizeDonation = (donation) => {
+  const rawStatus = donation.status || donation.donation_status || 'pending';
+  const normalizedStatus = String(rawStatus).charAt(0).toUpperCase() + String(rawStatus).slice(1).toLowerCase();
+
+  return {
+    id: donation.id || donation.donation_id || donation.food_donation_id || donation.ID,
+    foodName: donation.foodName || donation.food_name || donation.item_name || donation.food_item || donation.title || 'Food Donation',
+    quantity: donation.quantity || donation.qty || donation.amount || '',
+    foodType: donation.foodType || donation.food_type || donation.category || '',
+    expiryTime: donation.expiryTime || donation.expiry_time || donation.expiry || donation.expire_time || '',
+    pickupAddress: donation.pickupAddress || donation.pickup_address || donation.address || '',
+    status: normalizedStatus,
+    date: donation.date || donation.created_at || donation.createdAt || '',
+    volunteerName: donation.volunteerName || donation.volunteer_name || donation.assigned_volunteer || donation.assignedVolunteer || '',
+  };
+};
 
 const DonorDashboard = ({ onLogout }) => {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     foodName: '',
@@ -10,46 +44,37 @@ const DonorDashboard = ({ onLogout }) => {
     foodType: '',
     expiryTime: '',
     pickupAddress: '',
+    ngoId: '',
   });
 
-  const [donations, setDonations] = useState([
-    {
-      id: 1,
-      foodName: 'Biryani & Rice',
-      quantity: '20 portions',
-      foodType: 'Cooked Food',
-      expiryTime: '2 hours',
-      status: 'Approved',
-      date: '2024-05-20',
-    },
-    {
-      id: 2,
-      foodName: 'Fresh Fruits',
-      quantity: '50 kg',
-      foodType: 'Fresh Produce',
-      expiryTime: '5 days',
-      status: 'Picked Up',
-      date: '2024-05-19',
-    },
-    {
-      id: 3,
-      foodName: 'Bread & Bakery',
-      quantity: '100 pieces',
-      foodType: 'Bakery Items',
-      expiryTime: '1 day',
-      status: 'Delivered',
-      date: '2024-05-18',
-    },
-    {
-      id: 4,
-      foodName: 'Prepared Meals',
-      quantity: '30 servings',
-      foodType: 'Cooked Food',
-      expiryTime: '4 hours',
-      status: 'Pending',
-      date: '2024-05-21',
-    },
-  ]);
+  const [errorMessage, setErrorMessage] = useState('');
+  const { donorId, userId } = getStoredUserInfo();
+
+  const {
+    data: donationsData,
+    isLoading,
+    error: donationsError,
+  } = useQuery({
+    queryKey: ['donations', 'donor', donorId, userId],
+    queryFn: () => getDonations({ donor_id: donorId, user_id: userId }),
+    enabled: Boolean(donorId || userId),
+    refetchInterval: 5000,
+  });
+
+  const { data: ngosData } = useQuery({
+    queryKey: ['ngos'],
+    queryFn: getNgos,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const donations = useMemo(() => {
+    const rows = donationsData?.data || [];
+    return rows.map(normalizeDonation);
+  }, [donationsData]);
+
+  const ngoOptionsData = useMemo(() => ngosData?.data || [], [ngosData]);
+
+  const ngoSelectDisabled = ngoOptionsData.length === 0;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,24 +84,51 @@ const DonorDashboard = ({ onLogout }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Add new donation
-    const newDonation = {
-      id: donations.length + 1,
-      ...formData,
-      status: 'Pending',
-      date: new Date().toISOString().split('T')[0],
-    };
-    setDonations([newDonation, ...donations]);
-    setFormData({
-      foodName: '',
-      quantity: '',
-      foodType: '',
-      expiryTime: '',
-      pickupAddress: '',
-    });
-    setShowForm(false);
+    setErrorMessage('');
+
+    const donorValue = donorId || userId;
+
+    if (!donorValue) {
+      setErrorMessage('Please login again to add donations.');
+      return;
+    }
+
+    try {
+      const payload = {
+        donor_id: donorValue,
+        ngo_id: formData.ngoId,
+        food_name: formData.foodName,
+        quantity: formData.quantity,
+        food_type: formData.foodType,
+        expiry_time: formData.expiryTime,
+        pickup_address: formData.pickupAddress,
+        status: 'pending',
+        foodName: formData.foodName,
+        foodType: formData.foodType,
+        expiryTime: formData.expiryTime,
+        pickupAddress: formData.pickupAddress,
+        ngoId: formData.ngoId,
+      };
+
+      await createDonation(payload);
+      toast.success('Donation submitted successfully.');
+      queryClient.invalidateQueries({ queryKey: ['donations', 'donor', donorId, userId] });
+      setFormData({
+        foodName: '',
+        quantity: '',
+        foodType: '',
+        expiryTime: '',
+        pickupAddress: '',
+        ngoId: '',
+      });
+      setShowForm(false);
+    } catch (error) {
+      const message = error.message || 'Failed to add donation.';
+      setErrorMessage(message);
+      toast.error(message);
+    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -108,6 +160,7 @@ const DonorDashboard = ({ onLogout }) => {
 
         {/* Content */}
         <div className="p-6">
+          <NotificationsPanel />
           {/* Welcome Card */}
           <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl text-white p-8 mb-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-2">Welcome, Food Donor! 👋</h2>
@@ -117,7 +170,7 @@ const DonorDashboard = ({ onLogout }) => {
             <div className="flex gap-4 flex-wrap">
               <div className="bg-white bg-opacity-20 rounded-lg px-4 py-2">
                 <p className="text-sm">Total Donations</p>
-                <p className="text-2xl font-bold">24</p>
+                <p className="text-2xl font-bold">{donations.length}</p>
               </div>
               <div className="bg-white bg-opacity-20 rounded-lg px-4 py-2">
                 <p className="text-sm">Meals Shared</p>
@@ -190,6 +243,28 @@ const DonorDashboard = ({ onLogout }) => {
                   </select>
                 </div>
 
+                {/* NGO */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select NGO *</label>
+                  <select
+                    name="ngoId"
+                    value={formData.ngoId}
+                    onChange={handleChange}
+                    className="input-field"
+                    required
+                    disabled={ngoSelectDisabled}
+                  >
+                    <option value="">
+                      {ngoSelectDisabled ? 'No NGOs available' : 'Choose an NGO'}
+                    </option>
+                    {ngoOptionsData.map((ngo) => (
+                      <option key={ngo.id} value={ngo.id}>
+                        {ngo.name || `NGO ${ngo.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Expiry Time */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Time *</label>
@@ -246,6 +321,16 @@ const DonorDashboard = ({ onLogout }) => {
           <div className="card">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Donation History</h3>
 
+            {isLoading && (
+              <div className="text-gray-600">Loading donations...</div>
+            )}
+
+            {(errorMessage || donationsError) && !isLoading && (
+              <div className="text-sm text-red-600 mb-4">
+                {errorMessage || donationsError?.message || 'Failed to load donations.'}
+              </div>
+            )}
+
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
@@ -255,6 +340,7 @@ const DonorDashboard = ({ onLogout }) => {
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Quantity</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Type</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Expiry</th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Volunteer</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Status</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Date</th>
                   </tr>
@@ -266,6 +352,7 @@ const DonorDashboard = ({ onLogout }) => {
                       <td className="py-4 px-4 text-gray-600">{donation.quantity}</td>
                       <td className="py-4 px-4 text-gray-600">{donation.foodType}</td>
                       <td className="py-4 px-4 text-gray-600">{donation.expiryTime}</td>
+                      <td className="py-4 px-4 text-gray-600">{donation.volunteerName || '-'}</td>
                       <td className="py-4 px-4">
                         <span className={getStatusBadgeClass(donation.status)}>
                           {donation.status}
@@ -297,6 +384,7 @@ const DonorDashboard = ({ onLogout }) => {
                   <div className="text-sm text-gray-600 space-y-1">
                     <p><strong>Type:</strong> {donation.foodType}</p>
                     <p><strong>Expiry:</strong> {donation.expiryTime}</p>
+                    <p><strong>Volunteer:</strong> {donation.volunteerName || '-'}</p>
                     <p><strong>Date:</strong> {donation.date}</p>
                   </div>
                 </div>

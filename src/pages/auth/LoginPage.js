@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Leaf, Eye, EyeOff } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { login as loginRequest } from '../../utils/api';
 
 const LoginPage = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const LoginPage = ({ onLogin }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('donor');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,21 +24,41 @@ const LoginPage = ({ onLogin }) => {
     }));
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    
-    // Simulate login
-    onLogin(selectedRole);
 
-    // Navigate to appropriate dashboard
-    const dashboardMap = {
-      donor: '/donor-dashboard',
-      ngo: '/ngo-dashboard',
-      volunteer: '/volunteer-dashboard',
-      admin: '/admin-dashboard'
-    };
+    setErrorMessage('');
+    setIsSubmitting(true);
 
-    navigate(dashboardMap[selectedRole]);
+    try {
+      const response = await loginRequest({
+        email: formData.email,
+        password: formData.password,
+        role: selectedRole,
+      });
+
+      const user = response.user || {};
+      const normalizedUser = {
+        ...user,
+        role: user.role || selectedRole,
+      };
+      localStorage.setItem('foodshare_user', JSON.stringify(normalizedUser));
+
+      onLogin(normalizedUser.role);
+
+      const dashboardMap = {
+        donor: '/donor-dashboard',
+        ngo: '/ngo-dashboard',
+        volunteer: '/volunteer-dashboard',
+        admin: '/admin-dashboard'
+      };
+
+      navigate(dashboardMap[normalizedUser.role]);
+    } catch (error) {
+      setErrorMessage(error.message || 'Login failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -132,10 +155,16 @@ const LoginPage = ({ onLogin }) => {
             </div>
 
             {/* Submit Button */}
-            <button type="submit" className="w-full btn-primary text-center">
-              Sign In
+            <button type="submit" className="w-full btn-primary text-center" disabled={isSubmitting}>
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
+
+          {errorMessage && (
+            <div className="mt-4 text-sm text-red-600 text-center">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Sign Up Link */}
           <p className="text-center text-gray-600 mt-8">
@@ -145,12 +174,6 @@ const LoginPage = ({ onLogin }) => {
             </Link>
           </p>
 
-          {/* Demo Note */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-700 text-center">
-              <strong>Demo Mode:</strong> Use any credentials to login. Select your role above.
-            </p>
-          </div>
         </div>
       </div>
 

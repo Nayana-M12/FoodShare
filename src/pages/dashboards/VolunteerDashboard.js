@@ -1,88 +1,120 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MapPin, Clock, CheckCircle, AlertCircle, Phone, User, Truck } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
+import { getVolunteerDeliveries, markDonationDelivered, updateDeliveryStatus } from '../../utils/api';
+import NotificationsPanel from '../../components/NotificationsPanel';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+const getStoredUserId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('foodshare_user') || '{}');
+    return user.volunteer_id || user.volunteerId || user.id || user.user_id || user.userId || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const normalizeDelivery = (delivery) => {
+  const donationStatus = String(delivery.donation_status || '').toLowerCase();
+  const status = String(delivery.status || delivery.delivery_status || 'assigned').toLowerCase();
+  const displayStatus = donationStatus === 'delivered'
+    ? 'Delivered'
+    : status === 'picked_up' || status === 'in_transit'
+      ? 'In Transit'
+      : status === 'delivered'
+        ? 'Delivered'
+        : 'Assigned';
+
+  return {
+    id: delivery.id || delivery.delivery_id || delivery.ID,
+    donationId: delivery.donationId || delivery.donation_id || delivery.food_donation_id || null,
+    foodName: delivery.foodName || delivery.food_name || delivery.item_name || delivery.food_item || delivery.title || 'Food Donation',
+    quantity: delivery.quantity || delivery.qty || delivery.amount || '',
+    pickupLocation: delivery.pickupLocation || delivery.pickup_address || delivery.pickupAddress || 'Pickup location',
+    pickupPhone: delivery.pickupPhone || delivery.pickup_phone || '',
+    // prefer ngo location when available for the 'To' column
+    deliveryLocation: delivery.ngo_location || delivery.ngoLocation || delivery.deliveryLocation || delivery.delivery_address || delivery.dropoff_address || 'Delivery location',
+    deliveryPhone: delivery.deliveryPhone || delivery.delivery_phone || '',
+    contactPerson: delivery.contactPerson || delivery.contact_person || 'Contact',
+    status: displayStatus,
+    priority: delivery.priority || 'Medium',
+    pickedUp: displayStatus === 'In Transit',
+    deliveredAt: delivery.delivered_at || delivery.deliveredAt || '',
+  };
+};
 
 const VolunteerDashboard = ({ onLogout }) => {
-  const [deliveries, setDeliveries] = useState([
-    {
-      id: 1,
-      foodName: 'Biryani & Rice',
-      quantity: '20 portions',
-      pickupLocation: 'Taj Restaurant, Main Street',
-      pickupPhone: '+1 (555) 123-4567',
-      deliveryLocation: 'Community Center, Oak Avenue',
-      deliveryPhone: '+1 (555) 234-5678',
-      contactPerson: 'Mr. Ahmed',
-      status: 'Assigned',
-      priority: 'High',
-      pickedUp: false,
-    },
-    {
-      id: 2,
-      foodName: 'Fresh Vegetables',
-      quantity: '50 kg',
-      pickupLocation: 'Green Market, Park Road',
-      pickupPhone: '+1 (555) 345-6789',
-      deliveryLocation: 'Food Bank, Hope Street',
-      deliveryPhone: '+1 (555) 456-7890',
-      contactPerson: 'Ms. Sarah',
-      status: 'In Transit',
-      priority: 'Medium',
-      pickedUp: true,
-    },
-  ]);
+  const queryClient = useQueryClient();
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const [completedDeliveries, setCompletedDeliveries] = useState([
-    {
-      id: 1,
-      foodName: 'Prepared Meals',
-      quantity: '30 servings',
-      pickupLocation: 'Paradise Hotel',
-      deliveryLocation: 'Shelter Home',
-      completedTime: '2 hours ago',
-      rating: 5,
-    },
-    {
-      id: 2,
-      foodName: 'Bread & Bakery',
-      quantity: '100 pieces',
-      pickupLocation: 'Sweet Bakery',
-      deliveryLocation: 'Orphanage',
-      completedTime: 'Yesterday at 5 PM',
-      rating: 5,
-    },
-    {
-      id: 3,
-      foodName: 'Canned Goods',
-      quantity: '200 items',
-      pickupLocation: 'Metro Supermarket',
-      deliveryLocation: 'Homeless Shelter',
-      completedTime: '2 days ago',
-      rating: 4,
-    },
-  ]);
+  const volunteerId = getStoredUserId();
 
-  const handlePickUp = (id) => {
-    setDeliveries(deliveries.map(d => 
-      d.id === id ? { ...d, status: 'In Transit', pickedUp: true } : d
-    ));
+  const {
+    data: deliveriesData,
+    isLoading,
+    error: deliveriesError,
+  } = useQuery({
+    queryKey: ['deliveries', volunteerId],
+    queryFn: () => getVolunteerDeliveries(volunteerId),
+    enabled: Boolean(volunteerId),
+    refetchInterval: 5000,
+  });
+
+  const deliveries = useMemo(() => {
+    const rows = (deliveriesData?.data || []).map(normalizeDelivery);
+    return rows.filter((row) => row.status !== 'Delivered');
+  }, [deliveriesData]);
+
+  const completedDeliveries = useMemo(() => {
+    const rows = (deliveriesData?.data || []).map(normalizeDelivery);
+    return rows
+      .filter((row) => row.status === 'Delivered')
+      .map((row) => ({
+        ...row,
+        completedTime: row.completedTime || row.deliveredAt || 'Completed',
+      }));
+  }, [deliveriesData]);
+
+  const handlePickUp = async (id) => {
+    setErrorMessage('');
+
+    try {
+      await updateDeliveryStatus(id, 'picked_up');
+      toast.success('Pickup confirmed.');
+      queryClient.invalidateQueries({ queryKey: ['deliveries', volunteerId] });
+    } catch (error) {
+      const message = error.message || 'Failed to update delivery status.';
+      setErrorMessage(message);
+      toast.error(message);
+    }
   };
 
-  const handleCompleteDelivery = (id) => {
+  const handleCompleteDelivery = async (id) => {
     const delivery = deliveries.find(d => d.id === id);
-    setDeliveries(deliveries.filter(d => d.id !== id));
-    setCompletedDeliveries([
-      {
-        id: delivery.id,
-        foodName: delivery.foodName,
-        quantity: delivery.quantity,
-        pickupLocation: delivery.pickupLocation,
-        deliveryLocation: delivery.deliveryLocation,
-        completedTime: 'Just now',
-        rating: 0,
-      },
-      ...completedDeliveries,
-    ]);
+
+    if (!delivery) {
+      return;
+    }
+
+    setErrorMessage('');
+
+    try {
+      await updateDeliveryStatus(id, 'delivered');
+      setErrorMessage('');
+      toast.success('Delivery marked as delivered.');
+      queryClient.invalidateQueries({ queryKey: ['deliveries', volunteerId] });
+    } catch (error) {
+      const message = error.message || 'Failed to complete delivery.';
+      if (message.toLowerCase().includes('already delivered')) {
+        setErrorMessage('');
+        toast.success('Delivery already marked as delivered.');
+        queryClient.invalidateQueries({ queryKey: ['deliveries', volunteerId] });
+        return;
+      }
+      setErrorMessage(message);
+      toast.error(message);
+    }
   };
 
   const getPriorityColor = (priority) => {
@@ -125,6 +157,7 @@ const VolunteerDashboard = ({ onLogout }) => {
 
         {/* Content */}
         <div className="p-6">
+          <NotificationsPanel />
           {/* Welcome Card */}
           <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl text-white p-8 mb-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-2">Thank you for volunteering! 🚚</h2>
@@ -150,6 +183,16 @@ const VolunteerDashboard = ({ onLogout }) => {
           {/* Active Deliveries */}
           <div id="deliveries" className="mb-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Active Deliveries</h3>
+
+            {isLoading && (
+              <div className="text-gray-600">Loading deliveries...</div>
+            )}
+
+            {(errorMessage || deliveriesError) && !isLoading && (
+              <div className="text-sm text-red-600 mb-4">
+                {errorMessage || deliveriesError?.message || 'Failed to load deliveries.'}
+              </div>
+            )}
             <div className="space-y-6">
               {deliveries.map((delivery) => (
                 <div key={delivery.id} className="card border-l-4 border-l-primary-500 hover:shadow-lg transition-all duration-300">
@@ -225,7 +268,7 @@ const VolunteerDashboard = ({ onLogout }) => {
                         className="btn-primary flex-1 flex items-center justify-center gap-2"
                       >
                         <CheckCircle size={18} />
-                        Complete Delivery
+                        Confirm Delivery
                       </button>
                     )}
                     <button className="btn-outline flex-1">
@@ -258,7 +301,7 @@ const VolunteerDashboard = ({ onLogout }) => {
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">From</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">To</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Completed</th>
-                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Rating</th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -269,15 +312,7 @@ const VolunteerDashboard = ({ onLogout }) => {
                       <td className="py-4 px-4 text-gray-600 text-sm">{delivery.pickupLocation}</td>
                       <td className="py-4 px-4 text-gray-600 text-sm">{delivery.deliveryLocation}</td>
                       <td className="py-4 px-4 text-gray-600 text-sm">{delivery.completedTime}</td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < delivery.rating ? 'text-yellow-400' : 'text-gray-300'}>
-                              ★
-                            </span>
-                          ))}
-                        </div>
-                      </td>
+                      <td className="py-4 px-4 text-gray-600 text-sm">Delivered</td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,13 +335,7 @@ const VolunteerDashboard = ({ onLogout }) => {
                     <p><strong>To:</strong> {delivery.deliveryLocation}</p>
                     <p><strong>Completed:</strong> {delivery.completedTime}</p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < delivery.rating ? 'text-yellow-400' : 'text-gray-300'}>
-                        ★
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-sm text-gray-600">Status: Delivered</p>
                 </div>
               ))}
             </div>

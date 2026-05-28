@@ -1,94 +1,132 @@
-import React, { useState } from 'react';
-import { Search, Filter, MapPin, Clock, Package, Utensils } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, Filter, MapPin, Clock, Package, Utensils, User } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
+import NotificationsPanel from '../../components/NotificationsPanel';
+import {
+  approveDonationRequest,
+  getDonations,
+} from '../../utils/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+const getStoredUserId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('foodshare_user') || '{}');
+    return user.ngo_id || user.ngoId || user.id || user.user_id || user.userId || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const normalizeDonation = (donation) => {
+  const rawStatus = donation.status || donation.donation_status || donation.delivery_status || 'pending';
+  const normalizedStatus = String(rawStatus).charAt(0).toUpperCase() + String(rawStatus).slice(1).toLowerCase();
+
+  return {
+    id: donation.id || donation.donation_id || donation.food_donation_id || donation.ID,
+    foodName: donation.foodName || donation.food_name || donation.item_name || donation.food_item || donation.title || 'Food Donation',
+    quantity: donation.quantity || donation.qty || donation.amount || '',
+    foodType: donation.foodType || donation.food_type || donation.category || 'Cooked Food',
+    expiryTime: donation.expiryTime || donation.expiry_time || donation.expiry || donation.expire_time || '',
+    donor: donation.donor || donation.donor_name || donation.donorName || 'Donor',
+    location: donation.location || donation.pickup_address || donation.pickupAddress || 'Pickup location',
+    posted: donation.posted || donation.created_at || donation.createdAt || 'Recently',
+    volunteerName: donation.volunteerName || donation.volunteer_name || donation.assigned_volunteer || donation.assignedVolunteer || donation.volunteer_name || '',
+    status: normalizedStatus,
+    requestDate: donation.requestDate || donation.request_date || donation.created_at || donation.createdAt || donation.ngo_accepted_at || '',
+    eta: donation.eta || donation.estimated_time || 'Pending',
+  };
+};
+
+const uniqueFoodsById = (foods) => {
+  const seen = new Set();
+
+  return foods.filter((food) => {
+    const id = food.id ? String(food.id).trim() : '';
+    const fallbackKey = [
+      food.foodName,
+      food.donor,
+      food.location,
+      food.quantity,
+      food.expiryTime,
+      food.posted,
+    ]
+      .filter(Boolean)
+      .join('|')
+      .toLowerCase();
+
+    const key = id || fallbackKey;
+
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
 
 const NGODashboard = ({ onLogout }) => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [errorMessage, setErrorMessage] = useState('');
+  const ngoId = getStoredUserId();
 
-  const [availableFoods, setAvailableFoods] = useState([
-    {
-      id: 1,
-      foodName: 'Biryani & Rice',
-      quantity: '20 portions',
-      foodType: 'Cooked Food',
-      expiryTime: '2 hours',
-      donor: 'Taj Restaurant',
-      location: '5 km away',
-      posted: '30 minutes ago',
-    },
-    {
-      id: 2,
-      foodName: 'Fresh Vegetables',
-      quantity: '50 kg',
-      foodType: 'Fresh Produce',
-      expiryTime: '5 days',
-      donor: 'Green Market',
-      location: '8 km away',
-      posted: '2 hours ago',
-    },
-    {
-      id: 3,
-      foodName: 'Bread & Bakery',
-      quantity: '100 pieces',
-      foodType: 'Bakery Items',
-      expiryTime: '1 day',
-      donor: 'Sweet Bakery',
-      location: '3 km away',
-      posted: '45 minutes ago',
-    },
-    {
-      id: 4,
-      foodName: 'Canned Goods',
-      quantity: '200 items',
-      foodType: 'Packaged Food',
-      expiryTime: '6 months',
-      donor: 'Metro Supermarket',
-      location: '12 km away',
-      posted: '1 hour ago',
-    },
-  ]);
+  const {
+    data: donationsData,
+    isLoading,
+    error: donationsError,
+  } = useQuery({
+    queryKey: ['donations', 'ngo', ngoId],
+    queryFn: () => getDonations({ ngo_id: ngoId }),
+    enabled: Boolean(ngoId),
+    refetchInterval: 5000,
+  });
 
-  const [requestedDonations, setRequestedDonations] = useState([
-    {
-      id: 1,
-      foodName: 'Biryani & Rice',
-      quantity: '20 portions',
-      donor: 'Taj Restaurant',
-      requestDate: '2024-05-20',
-      deliveryStatus: 'Approved',
-      eta: '2 hours',
-    },
-    {
-      id: 2,
-      foodName: 'Fresh Fruits',
-      quantity: '50 kg',
-      donor: 'Metro Store',
-      requestDate: '2024-05-19',
-      deliveryStatus: 'In Transit',
-      eta: 'Arriving soon',
-    },
-    {
-      id: 3,
-      foodName: 'Prepared Meals',
-      quantity: '30 servings',
-      donor: 'Paradise Hotel',
-      requestDate: '2024-05-18',
-      deliveryStatus: 'Delivered',
-      eta: 'Completed',
-    },
-  ]);
+  const donations = useMemo(() => {
+    const rows = donationsData?.data || [];
+    return rows.map(normalizeDonation);
+  }, [donationsData]);
 
-  const handleRequestPickup = (id) => {
-    alert(`Pickup requested for food ID: ${id}`);
+  const availableFoods = useMemo(() => {
+    const eligible = donations.filter((donation) => ['Pending', 'Approved'].includes(donation.status));
+    return uniqueFoodsById(eligible);
+  }, [donations]);
+
+  const requestedDonations = useMemo(() => {
+    return donations.filter((donation) => ['Approved', 'Delivered'].includes(donation.status));
+  }, [donations]);
+
+  const handleRequestPickup = async (id) => {
+    setErrorMessage('');
+    if (!ngoId) {
+      const message = 'Please login again to accept pickup.';
+      setErrorMessage(message);
+      toast.error(message);
+      return;
+    }
+
+    try {
+      const response = await approveDonationRequest(id, { ngo_id: ngoId });
+      const message = response.message || 'Pickup approved.';
+      if (message.toLowerCase().includes('no volunteer')) {
+        toast.error(message);
+      } else {
+        toast.success(message);
+      }
+      queryClient.invalidateQueries({ queryKey: ['donations', 'ngo', ngoId] });
+    } catch (error) {
+      const message = error.message || 'Failed to approve pickup.';
+      setErrorMessage(message);
+      toast.error(message);
+    }
   };
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'Approved':
         return 'badge-approved';
-      case 'In Transit':
-        return 'badge-picked';
       case 'Delivered':
         return 'badge-delivered';
       default:
@@ -117,6 +155,7 @@ const NGODashboard = ({ onLogout }) => {
 
         {/* Content */}
         <div className="p-6">
+          <NotificationsPanel />
           {/* Welcome Card */}
           <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl text-white p-8 mb-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-2">Welcome to FoodShare NGO Portal! 🤝</h2>
@@ -164,6 +203,16 @@ const NGODashboard = ({ onLogout }) => {
           {/* Available Foods Grid */}
           <div id="foodGrid" className="mb-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Available Donations</h3>
+
+            {isLoading && (
+              <div className="text-gray-600 mb-4">Loading available food...</div>
+            )}
+
+            {(errorMessage || donationsError) && !isLoading && (
+              <div className="text-sm text-red-600 mb-4">
+                {errorMessage || donationsError?.message || 'Failed to load NGO data.'}
+              </div>
+            )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFoods.map((food) => (
                 <div key={food.id} className="card hover:shadow-xl transition-all duration-300">
@@ -172,8 +221,18 @@ const NGODashboard = ({ onLogout }) => {
                       <h4 className="text-lg font-bold text-gray-900">{food.foodName}</h4>
                       <p className="text-sm text-gray-600">{food.donor}</p>
                     </div>
-                    <div className="bg-primary-100 text-primary-600 rounded-full px-3 py-1 text-xs font-semibold">
-                      {food.foodType}
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="bg-primary-100 text-primary-600 rounded-full px-3 py-1 text-xs font-semibold">
+                        {food.foodType}
+                      </span>
+                      <span className={getStatusBadgeClass(food.status)}>
+                        {food.status}
+                      </span>
+                      {food.status === 'Approved' && !food.volunteerName && (
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                          Volunteers are busy
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -182,6 +241,12 @@ const NGODashboard = ({ onLogout }) => {
                       <Package size={16} />
                       <span>{food.quantity}</span>
                     </div>
+                    {food.volunteerName && (
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <User size={16} />
+                        <span>Volunteer: {food.volunteerName}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-gray-600 text-sm">
                       <Clock size={16} />
                       <span>Expires in {food.expiryTime}</span>
@@ -196,9 +261,10 @@ const NGODashboard = ({ onLogout }) => {
 
                   <button
                     onClick={() => handleRequestPickup(food.id)}
-                    className="w-full btn-secondary"
+                    className={`w-full btn-secondary ${food.status !== 'Pending' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    disabled={food.status !== 'Pending'}
                   >
-                    Request Pickup
+                    {food.status === 'Pending' ? 'Accept Pickup' : 'Accepted'}
                   </button>
                 </div>
               ))}
@@ -224,6 +290,7 @@ const NGODashboard = ({ onLogout }) => {
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Food Item</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Quantity</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Donor</th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">Volunteer</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Status</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">ETA</th>
                     <th className="text-left py-4 px-4 font-semibold text-gray-700">Date</th>
@@ -235,9 +302,10 @@ const NGODashboard = ({ onLogout }) => {
                       <td className="py-4 px-4 text-gray-900 font-medium">{donation.foodName}</td>
                       <td className="py-4 px-4 text-gray-600">{donation.quantity}</td>
                       <td className="py-4 px-4 text-gray-600">{donation.donor}</td>
+                      <td className="py-4 px-4 text-gray-600">{donation.volunteerName || '-'}</td>
                       <td className="py-4 px-4">
-                        <span className={getStatusBadgeClass(donation.deliveryStatus)}>
-                          {donation.deliveryStatus}
+                        <span className={getStatusBadgeClass(donation.status)}>
+                          {donation.status}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-gray-600">{donation.eta}</td>
@@ -260,12 +328,13 @@ const NGODashboard = ({ onLogout }) => {
                       <p className="font-semibold text-gray-900">{donation.foodName}</p>
                       <p className="text-sm text-gray-600">{donation.quantity}</p>
                     </div>
-                    <span className={getStatusBadgeClass(donation.deliveryStatus)}>
-                      {donation.deliveryStatus}
+                    <span className={getStatusBadgeClass(donation.status)}>
+                      {donation.status}
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
                     <p><strong>Donor:</strong> {donation.donor}</p>
+                    <p><strong>Volunteer:</strong> {donation.volunteerName || '-'}</p>
                     <p><strong>ETA:</strong> {donation.eta}</p>
                     <p><strong>Date:</strong> {donation.requestDate}</p>
                   </div>

@@ -1,92 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, CheckCircle, XCircle, TrendingUp, BarChart3 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
+import NotificationsPanel from '../../components/NotificationsPanel';
+import {
+  approveDonation,
+  getAdminDashboard,
+  getAdminDonations,
+  getAdminUsers,
+} from '../../utils/api';
+
+const normalizeDonation = (donation) => ({
+  id: donation.id || donation.donation_id || donation.food_donation_id || donation.ID,
+  donor: donation.donor || donation.donor_name || donation.donorName || 'Donor',
+  foodName: donation.foodName || donation.food_name || donation.item_name || donation.food_item || donation.title || 'Food Donation',
+  quantity: donation.quantity || donation.qty || donation.amount || '',
+  status: donation.status || donation.donation_status || 'Pending',
+  date: donation.date || donation.created_at || donation.createdAt || '',
+  contact: donation.contact || donation.phone || donation.contact_phone || '',
+});
+
+const normalizeUser = (user) => ({
+  id: user.id || user.user_id || user.ID,
+  name: user.name || user.full_name || user.username || 'User',
+  email: user.email || user.username || '',
+  role: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User',
+  status: user.status || 'Active',
+  joinDate: user.joinDate || user.created_at || user.createdAt || '',
+});
 
 const AdminDashboard = ({ onLogout }) => {
-  const [donations, setDonations] = useState([
-    {
-      id: 1,
-      donor: 'Taj Restaurant',
-      foodName: 'Biryani & Rice',
-      quantity: '20 portions',
-      status: 'Pending',
-      date: '2024-05-21',
-      contact: '+1 (555) 123-4567',
-    },
-    {
-      id: 2,
-      donor: 'Green Market',
-      foodName: 'Fresh Vegetables',
-      quantity: '50 kg',
-      status: 'Approved',
-      date: '2024-05-20',
-      contact: '+1 (555) 234-5678',
-    },
-    {
-      id: 3,
-      donor: 'Sweet Bakery',
-      foodName: 'Bread & Bakery',
-      quantity: '100 pieces',
-      status: 'Rejected',
-      date: '2024-05-19',
-      contact: '+1 (555) 345-6789',
-    },
-    {
-      id: 4,
-      donor: 'Metro Supermarket',
-      foodName: 'Canned Goods',
-      quantity: '200 items',
-      status: 'Pending',
-      date: '2024-05-21',
-      contact: '+1 (555) 456-7890',
-    },
-  ]);
+  const [donations, setDonations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalDonations: 0,
+    activeDeliveries: 0,
+    approvalRate: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@restaurant.com',
-      role: 'Donor',
-      status: 'Active',
-      joinDate: '2024-01-15',
-    },
-    {
-      id: 2,
-      name: 'Sarah NGO',
-      email: 'sarah@ngo.com',
-      role: 'NGO',
-      status: 'Active',
-      joinDate: '2024-02-20',
-    },
-    {
-      id: 3,
-      name: 'Mike Volunteer',
-      email: 'mike@volunteer.com',
-      role: 'Volunteer',
-      status: 'Active',
-      joinDate: '2024-03-10',
-    },
-    {
-      id: 4,
-      name: 'Admin User',
-      email: 'admin@foodshare.com',
-      role: 'Admin',
-      status: 'Active',
-      joinDate: '2024-01-01',
-    },
-  ]);
+  useEffect(() => {
+    const loadAdminData = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
 
-  const handleApproveDonation = (id) => {
-    setDonations(donations.map(d =>
-      d.id === id ? { ...d, status: 'Approved' } : d
-    ));
+      try {
+        const [usersResponse, donationsResponse, dashboardResponse] = await Promise.all([
+          getAdminUsers(),
+          getAdminDonations(),
+          getAdminDashboard(),
+        ]);
+
+        const usersData = (usersResponse.data || []).map(normalizeUser);
+        // hide admin accounts from the users list in the UI
+        const visibleUsers = usersData.filter(u => String(u.role || '').toLowerCase() !== 'admin');
+        const donationData = (donationsResponse.data || []).map(normalizeDonation);
+        const dashboard = dashboardResponse.data || {};
+
+        setUsers(visibleUsers);
+        setDonations(donationData);
+        const approvedCount = dashboard.donationStatus
+          ? dashboard.donationStatus.find((item) => String(item.status || '').toLowerCase() === 'approved')?.total || 0
+          : 0;
+
+        setStats({
+          totalUsers: dashboard.users || usersData.length || 0,
+          totalDonations: dashboard.food_donations || donationData.length || 0,
+          activeDeliveries: dashboard.deliveries || 0,
+          approvalRate: donationData.length
+            ? Math.round((approvedCount / donationData.length) * 100)
+            : 0,
+        });
+      } catch (error) {
+        setErrorMessage(error.message || 'Failed to load admin data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAdminData();
+  }, []);
+
+  const handleApproveDonation = async (id) => {
+    setErrorMessage('');
+
+    try {
+      await approveDonation(id, 'approved');
+      setDonations(donations.map(d =>
+        d.id === id ? { ...d, status: 'Approved' } : d
+      ));
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to approve donation.');
+    }
   };
 
-  const handleRejectDonation = (id) => {
-    setDonations(donations.map(d =>
-      d.id === id ? { ...d, status: 'Rejected' } : d
-    ));
+  const handleRejectDonation = async (id) => {
+    setErrorMessage('');
+
+    try {
+      await approveDonation(id, 'rejected');
+      setDonations(donations.map(d =>
+        d.id === id ? { ...d, status: 'Rejected' } : d
+      ));
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to reject donation.');
+    }
   };
 
   const handleDeactivateUser = (id) => {
@@ -112,11 +131,11 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
-  const stats = [
-    { label: 'Total Users', value: '1,245', icon: Users, color: 'primary' },
-    { label: 'Total Donations', value: '3,852', icon: TrendingUp, color: 'secondary' },
-    { label: 'Active Deliveries', value: '48', icon: BarChart3, color: 'primary' },
-    { label: 'Approval Rate', value: '94.2%', icon: CheckCircle, color: 'secondary' },
+  const statCards = [
+    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'primary' },
+    { label: 'Total Donations', value: stats.totalDonations, icon: TrendingUp, color: 'secondary' },
+    { label: 'Active Deliveries', value: stats.activeDeliveries, icon: BarChart3, color: 'primary' },
+    { label: 'Approval Rate', value: `${stats.approvalRate}%`, icon: CheckCircle, color: 'secondary' },
   ];
 
   return (
@@ -133,9 +152,10 @@ const AdminDashboard = ({ onLogout }) => {
 
         {/* Content */}
         <div className="p-6">
+          <NotificationsPanel />
           {/* Statistics */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => {
+            {statCards.map((stat, index) => {
               const Icon = stat.icon;
               const colorClass = stat.color === 'primary' ? 'text-primary-600 bg-primary-100' : 'text-secondary-600 bg-secondary-100';
               return (
@@ -159,6 +179,14 @@ const AdminDashboard = ({ onLogout }) => {
             {/* Donations Section */}
             <div id="donations" className="card">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Manage Donations</h3>
+
+              {isLoading && (
+                <div className="text-gray-600 mb-4">Loading donations...</div>
+              )}
+
+              {errorMessage && !isLoading && (
+                <div className="text-sm text-red-600 mb-4">{errorMessage}</div>
+              )}
 
               {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">

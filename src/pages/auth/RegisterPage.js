@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, Leaf, Phone, MapPin } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { register as registerRequest } from '../../utils/api';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -23,7 +24,10 @@ const RegisterPage = () => {
     registrationNumber: '',
     // Volunteer specific
     experience: '',
+    vehicleType: '',
   });
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,10 +42,44 @@ const RegisterPage = () => {
     setStep(2);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate registration
-    navigate('/login');
+    setErrorMessage('');
+
+    if (!userType) {
+      setErrorMessage('Please select a role to continue.');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await registerRequest({
+        name: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        role: userType,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        restaurantName: formData.restaurantName,
+        organizationName: formData.organizationName,
+        registrationNumber: formData.registrationNumber,
+        experience: formData.experience,
+        vehicleType: formData.vehicleType,
+      });
+
+      navigate('/login');
+    } catch (error) {
+      setErrorMessage(error.message || 'Registration failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderUserTypeSelection = () => (
@@ -234,6 +272,17 @@ const RegisterPage = () => {
       {userType === 'volunteer' && (
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-4 mt-6">Volunteer Information</h3>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
+            <input
+              type="text"
+              name="vehicleType"
+              value={formData.vehicleType}
+              onChange={handleChange}
+              placeholder="Bike, car, van..."
+              className="input-field"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Experience with Food Delivery</label>
             <select
@@ -296,9 +345,15 @@ const RegisterPage = () => {
       </div>
 
       {/* Submit Button */}
-      <button type="submit" className="w-full btn-primary text-center mt-6">
-        Create Account
+      <button type="submit" className="w-full btn-primary text-center mt-6" disabled={isSubmitting}>
+        {isSubmitting ? 'Creating Account...' : 'Create Account'}
       </button>
+
+      {errorMessage && (
+        <div className="mt-4 text-sm text-red-600 text-center">
+          {errorMessage}
+        </div>
+      )}
     </form>
   );
 
