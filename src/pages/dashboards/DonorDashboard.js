@@ -18,9 +18,40 @@ const getStoredUserInfo = () => {
   }
 };
 
+const formatStatusLabel = (value) => {
+  const normalized = String(value || '')
+    .replace(/_/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) {
+    return 'Pending';
+  }
+
+  return normalized
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 const normalizeDonation = (donation) => {
-  const rawStatus = donation.status || donation.donation_status || 'pending';
-  const normalizedStatus = String(rawStatus).charAt(0).toUpperCase() + String(rawStatus).slice(1).toLowerCase();
+  const rawStatus = String(donation.status || donation.donation_status || 'pending').toLowerCase();
+  const normalizedRawStatus = rawStatus === 'accepted' ? 'approved' : rawStatus;
+  const rawPickupStatus = String(donation.pickup_status || '').toLowerCase();
+  const rawDeliveryStatus = String(donation.delivery_status || '').toLowerCase();
+
+  let displayStatus = normalizedRawStatus;
+
+  if (rawDeliveryStatus === 'delivered' || normalizedRawStatus === 'delivered' || rawPickupStatus === 'delivered') {
+    displayStatus = 'delivered';
+  } else if (
+    ['picked_up', 'picked up', 'in_transit', 'in transit'].includes(rawDeliveryStatus) ||
+    ['picked_up', 'picked up', 'in_transit', 'in transit'].includes(rawPickupStatus)
+  ) {
+    displayStatus = 'picked up';
+  } else if (normalizedRawStatus === 'approved') {
+    displayStatus = 'approved';
+  }
 
   return {
     id: donation.id || donation.donation_id || donation.food_donation_id || donation.ID,
@@ -29,7 +60,7 @@ const normalizeDonation = (donation) => {
     foodType: donation.foodType || donation.food_type || donation.category || '',
     expiryTime: donation.expiryTime || donation.expiry_time || donation.expiry || donation.expire_time || '',
     pickupAddress: donation.pickupAddress || donation.pickup_address || donation.address || '',
-    status: normalizedStatus,
+    status: formatStatusLabel(displayStatus),
     date: donation.date || donation.created_at || donation.createdAt || '',
     volunteerName: donation.volunteerName || donation.volunteer_name || donation.assigned_volunteer || donation.assignedVolunteer || '',
   };

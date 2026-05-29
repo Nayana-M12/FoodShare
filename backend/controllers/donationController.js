@@ -80,6 +80,146 @@ async function resolveNgoId(payload) {
   return rows[0]?.ngo_id || null;
 }
 
+async function syncVolunteerAvailability(volunteerId) {
+  const volunteersMeta = await getColumns('volunteers');
+  const availabilityColumn = findFirstMatchingColumn(volunteersMeta.columns, ['availability_status', 'availabilityStatus', 'availability', 'status']);
+
+  if (!availabilityColumn || !volunteerId) {
+    return;
+  }
+
+  const deliveriesMeta = await getColumns('deliveries');
+  const deliveryVolunteerColumn = findFirstMatchingColumn(deliveriesMeta.columns, ['volunteer_id', 'assigned_volunteer_id', 'user_id']);
+  const deliveryStatusColumn = findFirstMatchingColumn(deliveriesMeta.columns, ['status', 'delivery_status']);
+
+  if (!deliveryVolunteerColumn || !deliveryStatusColumn) {
+    await pool.query(
+      `UPDATE volunteers SET \`${availabilityColumn}\` = 'Available' WHERE \`${volunteersMeta.primaryKey}\` = ?`,
+      [volunteerId]
+    );
+    return;
+  }
+
+  const [activeDeliveries] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+     FROM deliveries
+     WHERE \`${deliveryVolunteerColumn}\` = ?
+       AND LOWER(COALESCE(\`${deliveryStatusColumn}\`, '')) IN ('assigned', 'picked_up', 'in_transit')`,
+    [volunteerId]
+  );
+
+  const nextAvailability = Number(activeDeliveries[0]?.active_count || 0) > 0 ? 'Busy' : 'Available';
+
+  await pool.query(
+    `UPDATE volunteers SET \`${availabilityColumn}\` = ? WHERE \`${volunteersMeta.primaryKey}\` = ?`,
+    [nextAvailability, volunteerId]
+  );
+
+  if (nextAvailability === 'Available') {
+    await autoAssignNextDonationToVolunteer(volunteerId);
+  }
+}
+
+async function autoAssignNextDonationToVolunteer(volunteerId) {
+  const foodMeta = await getColumns('food_donations');
+  const statusColumn = findFirstMatchingColumn(foodMeta.columns, ['status', 'donation_status']);
+
+  const pickupsMeta = await getColumns('pickup_requests');
+  const pickupDonationColumn = findFirstMatchingColumn(pickupsMeta.columns, ['donation_id', 'food_donation_id', 'food_id']);
+  const pickupRequestColumn = findFirstMatchingColumn(pickupsMeta.columns, ['request_id', 'pickup_request_id']);
+  const pickupStatusColumn = findFirstMatchingColumn(pickupsMeta.columns, ['request_status', 'status']);
+
+  const deliveriesMeta = await getColumns('deliveries');
+  const deliveryRequestColumn = findFirstMatchingColumn(deliveriesMeta.columns, ['request_id', 'pickup_request_id']);
+  const deliveryVolunteerColumn = findFirstMatchingColumn(deliveriesMeta.columns, ['volunteer_id', 'assigned_volunteer_id', 'user_id']);
+  const deliveryStatusColumn = findFirstMatchingColumn(deliveriesMeta.columns, ['status', 'delivery_status']);
+
+  const volunteersMeta = await getColumns('volunteers');
+  const availabilityColumn = findFirstMatchingColumn(volunteersMeta.columns, ['availability_status', 'availabilityStatus', 'availability', 'status']);
+  const volunteerNameColumn = findFirstMatchingColumn(volunteersMeta.columns, ['name', 'full_name']);
+  const volunteerUserIdColumn = findFirstMatchingColumn(volunteersMeta.columns, ['user_id', 'volunteer_user_id']);
+  const usersMeta = await getColumns('users');
+  const userNameColumn = findFirstMatchingColumn(usersMeta.columns, ['name', 'full_name', 'username']);
+
+  if (!statusColumn || !pickupDonationColumn || !pickupRequestColumn || !deliveryRequestColumn || !deliveryVolunteerColumn || !availabilityColumn) {
+    return;
+  }
+
+  const volunteerLookupConditions = [`v.\`${volunteersMeta.primaryKey}\` = ?`];
+  const volunteerLookupParams = [volunteerId];
+
+  if (volunteerUserIdColumn) {
+    volunteerLookupConditions.push(`v.\`${volunteerUserIdColumn}\` = ?`);
+    volunteerLookupParams.push(volunteerId);
+  }
+
+  const [volunteerRows] = await pool.query(
+    `SELECT v.*, ${volunteerNameColumn ? `v.\`${volunteerNameColumn}\`` : userNameColumn ? `u.\`${userNameColumn}\`` : 'NULL'} AS volunteer_name
+     FROM volunteers v
+     ${userNameColumn && volunteerUserIdColumn ? `LEFT JOIN users u ON v.\`${volunteerUserIdColumn}\` = u.\`${usersMeta.primaryKey}\`` : ''}
+     WHERE ${volunteerLookupConditions.join(' OR ')}
+     LIMIT 1`,
+    volunteerLookupParams
+  );
+
+  const volunteerRow = volunteerRows[0];
+  if (!volunteerRow) {
+    return;
+  }
+
+  const [queuedDonations] = await pool.query(
+    `SELECT fd.\`${foodMeta.primaryKey}\` AS donation_id,
+            pr.\`${pickupsMeta.primaryKey}\` AS pickup_request_id
+     FROM food_donations fd
+     INNER JOIN pickup_requests pr ON fd.\`${foodMeta.primaryKey}\` = pr.\`${pickupDonationColumn}\`
+     LEFT JOIN deliveries d ON pr.\`${pickupsMeta.primaryKey}\` = d.\`${deliveryRequestColumn}\`
+     WHERE LOWER(COALESCE(fd.\`${statusColumn}\`, '')) = 'approved'
+       AND (d.\`${deliveryRequestColumn}\` IS NULL OR LOWER(COALESCE(d.\`${deliveryStatusColumn || deliveryRequestColumn}\`, '')) = 'delivered')
+     ORDER BY fd.\`${foodMeta.primaryKey}\` ASC
+     LIMIT 1`
+  );
+
+  const nextDonation = queuedDonations[0];
+  if (!nextDonation) {
+    return;
+  }
+
+  const volunteerAssignmentValue = deliveryVolunteerColumn === 'user_id'
+    ? volunteerRow[volunteerUserIdColumn] || volunteerRow[volunteersMeta.primaryKey]
+    : volunteerRow[volunteersMeta.primaryKey];
+
+  const deliveryPayload = {
+    [deliveryRequestColumn]: nextDonation.pickup_request_id,
+    [deliveryVolunteerColumn]: volunteerAssignmentValue,
+  };
+
+  if (deliveryStatusColumn) {
+    deliveryPayload[deliveryStatusColumn] = 'assigned';
+  }
+
+  await pool.query('INSERT INTO deliveries SET ?', [deliveryPayload]);
+
+  await pool.query(
+    `UPDATE volunteers SET \`${availabilityColumn}\` = 'Busy' WHERE \`${volunteersMeta.primaryKey}\` = ?`,
+    [volunteerRow[volunteersMeta.primaryKey]]
+  );
+
+  const assignedVolunteerColumn = findFirstMatchingColumn(foodMeta.columns, ['assigned_volunteer', 'assignedVolunteer']);
+  if (assignedVolunteerColumn) {
+    await pool.query(
+      `UPDATE food_donations SET \`${assignedVolunteerColumn}\` = ? WHERE \`${foodMeta.primaryKey}\` = ?`,
+      [volunteerRow.volunteer_name || volunteerRow.name || null, nextDonation.donation_id]
+    );
+  }
+
+  if (pickupStatusColumn) {
+    await pool.query(
+      `UPDATE pickup_requests SET \`${pickupStatusColumn}\` = 'approved' WHERE \`${pickupsMeta.primaryKey}\` = ?`,
+      [nextDonation.pickup_request_id]
+    );
+  }
+}
+
 async function createDonation(req, res) {
   try {
     const { columns, primaryKey } = await getColumns('food_donations');
@@ -722,18 +862,8 @@ async function markDelivered(req, res) {
         .filter(Boolean);
 
       if (volunteerIds.length > 0) {
-        const volunteersMeta = await getColumns('volunteers');
-        const availabilityColumn = findFirstMatchingColumn(volunteersMeta.columns, ['availability_status', 'availabilityStatus', 'availability', 'status']);
-        const volunteerUserIdColumn = findFirstMatchingColumn(volunteersMeta.columns, ['user_id', 'volunteer_user_id']);
-        const targetColumn = deliveryVolunteerColumn === 'user_id' && volunteerUserIdColumn
-          ? volunteerUserIdColumn
-          : volunteersMeta.primaryKey;
-
-        if (availabilityColumn) {
-          await pool.query(
-            `UPDATE volunteers SET \`${availabilityColumn}\` = 'Available' WHERE \`${targetColumn}\` IN (${volunteerIds.map(() => '?').join(', ')})`,
-            volunteerIds
-          );
+        for (const volunteerId of volunteerIds) {
+          await syncVolunteerAvailability(volunteerId);
         }
       }
     }

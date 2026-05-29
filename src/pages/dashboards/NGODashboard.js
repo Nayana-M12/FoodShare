@@ -18,9 +18,38 @@ const getStoredUserId = () => {
   }
 };
 
+const formatStatusLabel = (value) => {
+  const normalized = String(value || '')
+    .replace(/_/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) {
+    return 'Pending';
+  }
+
+  return normalized
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const normalizeCanonicalStatus = (value) => {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+
+  if (normalized === 'accepted' || normalized === 'approved') {
+    return 'approved';
+  }
+
+  return normalized;
+};
+
 const normalizeDonation = (donation) => {
-  const rawStatus = donation.status || donation.donation_status || donation.delivery_status || 'pending';
-  const normalizedStatus = String(rawStatus).charAt(0).toUpperCase() + String(rawStatus).slice(1).toLowerCase();
+  const rawPickupStatus = donation.pickup_status || donation.pickupStatus || '';
+  const rawStatus = donation.delivery_status || rawPickupStatus || donation.status || donation.donation_status || 'pending';
+  const normalizedStatus = formatStatusLabel(normalizeCanonicalStatus(rawStatus));
+  const rawDeliveryStatus = donation.delivery_status || donation.deliveryStatus || '';
+  const normalizedDeliveryStatus = formatStatusLabel(rawDeliveryStatus);
 
   return {
     id: donation.id || donation.donation_id || donation.food_donation_id || donation.ID,
@@ -32,6 +61,8 @@ const normalizeDonation = (donation) => {
     location: donation.location || donation.pickup_address || donation.pickupAddress || 'Pickup location',
     posted: donation.posted || donation.created_at || donation.createdAt || 'Recently',
     volunteerName: donation.volunteerName || donation.volunteer_name || donation.assigned_volunteer || donation.assignedVolunteer || donation.volunteer_name || '',
+    deliveryStatus: normalizedDeliveryStatus,
+    pickupStatus: formatStatusLabel(normalizeCanonicalStatus(rawPickupStatus)),
     status: normalizedStatus,
     requestDate: donation.requestDate || donation.request_date || donation.created_at || donation.createdAt || donation.ngo_accepted_at || '',
     eta: donation.eta || donation.estimated_time || 'Pending',
@@ -90,12 +121,12 @@ const NGODashboard = ({ onLogout }) => {
   }, [donationsData]);
 
   const availableFoods = useMemo(() => {
-    const eligible = donations.filter((donation) => ['Pending', 'Approved'].includes(donation.status));
+    const eligible = donations.filter((donation) => donation.status === 'Pending');
     return uniqueFoodsById(eligible);
   }, [donations]);
 
   const requestedDonations = useMemo(() => {
-    return donations.filter((donation) => ['Approved', 'Delivered'].includes(donation.status));
+    return donations.filter((donation) => donation.status !== 'Pending');
   }, [donations]);
 
   const handleRequestPickup = async (id) => {
@@ -127,6 +158,9 @@ const NGODashboard = ({ onLogout }) => {
     switch (status) {
       case 'Approved':
         return 'badge-approved';
+      case 'Picked Up':
+      case 'In Transit':
+        return 'badge-picked';
       case 'Delivered':
         return 'badge-delivered';
       default:
@@ -228,7 +262,7 @@ const NGODashboard = ({ onLogout }) => {
                       <span className={getStatusBadgeClass(food.status)}>
                         {food.status}
                       </span>
-                      {food.status === 'Approved' && !food.volunteerName && (
+                      {['Approved', 'Picked Up', 'In Transit'].includes(food.status) && food.deliveryStatus && food.deliveryStatus !== 'Delivered' && (
                         <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
                           Volunteers are busy
                         </span>

@@ -14,7 +14,9 @@ const normalizeDonation = (donation) => ({
   donor: donation.donor || donation.donor_name || donation.donorName || 'Donor',
   foodName: donation.foodName || donation.food_name || donation.item_name || donation.food_item || donation.title || 'Food Donation',
   quantity: donation.quantity || donation.qty || donation.amount || '',
-  status: donation.status || donation.donation_status || 'Pending',
+  status: String(donation.status || donation.donation_status || 'Pending').toLowerCase() === 'accepted'
+    ? 'Approved'
+    : donation.status || donation.donation_status || 'Pending',
   date: donation.date || donation.created_at || donation.createdAt || '',
   contact: donation.contact || donation.phone || donation.contact_phone || '',
 });
